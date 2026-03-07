@@ -40,6 +40,13 @@ func RunOnce(ctx context.Context, registry *inference.ProviderRegistry,
 
 	fullText, renderErr := RenderStream(ctx, events, w)
 
+	// Drain remaining events so the provider goroutine can finish
+	// and close the channel. Without this, a cancelled context leaves
+	// the goroutine blocked on out<-event permanently.
+	if ctx.Err() != nil {
+		go func() { for range events {} }()
+	}
+
 	if providerErr := <-errCh; providerErr != nil {
 		return fullText, fmt.Errorf("provider error: %w", providerErr)
 	}

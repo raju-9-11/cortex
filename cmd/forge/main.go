@@ -93,7 +93,10 @@ func runCmd() {
 		useModel = *model
 	}
 
-	_, err = cli.RunOnce(context.Background(), application.Registry, useModel, *system, promptText, os.Stdout)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	_, err = cli.RunOnce(ctx, application.Registry, useModel, *system, promptText, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
 		os.Exit(1)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -49,8 +50,9 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 
 // Close shuts down both the reader and writer connection pools.
 func (s *SQLiteStore) Close() error {
-	s.reader.Close()
-	return s.writer.Close()
+	rErr := s.reader.Close()
+	wErr := s.writer.Close()
+	return errors.Join(rErr, wErr)
 }
 
 // Ping verifies database connectivity.

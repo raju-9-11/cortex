@@ -24,6 +24,7 @@ type ProviderEntry struct {
 // DiscoverConfigFile finds the first config file that exists.
 // Search order: envPath (from $FORGE_CONFIG) > ~/.forge/config.json > ./forge.config.json
 // Returns empty string if no config file found.
+// Warns if the config file has overly permissive permissions.
 func DiscoverConfigFile(envPath string) string {
 	candidates := []string{}
 
@@ -38,7 +39,11 @@ func DiscoverConfigFile(envPath string) string {
 	candidates = append(candidates, "forge.config.json")
 
 	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
+		info, err := os.Stat(path)
+		if err == nil {
+			if info.Mode().Perm()&0077 != 0 {
+				fmt.Fprintf(os.Stderr, "WARNING: %s has permissions %o, should be 0600 to protect API keys\n", path, info.Mode().Perm())
+			}
 			return path
 		}
 	}

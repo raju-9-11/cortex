@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -85,6 +86,7 @@ func RunREPL(ctx context.Context, registry *inference.ProviderRegistry,
 
 	// 3. Main loop.
 	scanner := bufio.NewScanner(in)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // 1MB max line
 	for {
 		fmt.Fprintf(out, "forge [%s]> ", shortModel(model))
 
@@ -116,14 +118,23 @@ func RunREPL(ctx context.Context, registry *inference.ProviderRegistry,
 
 			case "/new":
 				newSess, err := sessionMgr.Create(ctx, session.CreateParams{
-					Model:  model,
-					UserID: "default",
+					Model:        model,
+					SystemPrompt: systemPrompt,
+					UserID:       "default",
 				})
 				if err != nil {
 					fmt.Fprintf(out, "Error creating session: %v\n", err)
 					continue
 				}
 				sess = newSess
+				if systemPrompt != "" {
+					if addErr := sessionMgr.AddMessage(ctx, sess.ID, &store.Message{
+						Role:    "system",
+						Content: systemPrompt,
+					}); addErr != nil {
+						fmt.Fprintf(out, "Warning: failed to save system prompt: %v\n", addErr)
+					}
+				}
 				fmt.Fprintf(out, "New session created: %s\n", sess.ID)
 				continue
 
@@ -252,16 +263,15 @@ func RunREPL(ctx context.Context, registry *inference.ProviderRegistry,
 		fmt.Fprintf(out, "\n")
 		assistantContent, streamErr := RenderStream(genCtx, events, out)
 
-		// Drain remaining events so the provider goroutine can finish
-		if genCtx.Err() != nil {
-			for range events {
-			}
+		// Cancel the generation context first so the provider goroutine
+		// can exit, then drain remaining events to unblock channel sends.
+		genCancel()
+		for range events {
 		}
 
 		providerErr := <-errCh
-		genCancel()
 
-		if streamErr == context.Canceled || providerErr == context.Canceled {
+		if errors.Is(streamErr, context.Canceled) || errors.Is(providerErr, context.Canceled) {
 			fmt.Fprintf(out, "[cancelled]\n")
 			continue
 		}

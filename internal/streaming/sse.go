@@ -104,6 +104,10 @@ done:
 	fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
 
+	// Drain the events channel so the provider goroutine can exit
+	// even if it's blocked writing to the channel.
+	go func() { for range events {} }()
+
 	// Drain the error channel — don't leak the goroutine
 	select {
 	case err := <-errCh:

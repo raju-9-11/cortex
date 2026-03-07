@@ -31,7 +31,9 @@ func (m *MockProvider) StreamChat(ctx context.Context, req *types.ChatCompletion
 	defer close(out)
 	for i, token := range m.tokens {
 		if m.failAt == i {
-			return errors.New("mock provider failure")
+			err := errors.New("mock provider failure")
+			out <- types.StreamEvent{Type: types.EventError, Error: err, ErrorMessage: err.Error()}
+			return err
 		}
 		select {
 		case <-ctx.Done():

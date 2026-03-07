@@ -53,6 +53,13 @@ func New(opts ...Option) (*App, error) {
 	}
 	cfg.Version = o.version
 
+	// 1b. Load JSON config file (if any) for additional providers
+	cfgPath := config.DiscoverConfigFile(cfg.ConfigFilePath)
+	fileCfg, err := config.LoadConfigFile(cfgPath)
+	if err != nil {
+		log.Printf("[WARN] Config file error: %v", err)
+	}
+
 	// 2. Initialize SQLite store
 	db, err := store.NewSQLiteStore(cfg.SQLitePath)
 	if err != nil {
@@ -93,6 +100,23 @@ func New(opts ...Option) (*App, error) {
 	}
 	if cfg.OSSKey != "" {
 		registry.Register(inference.NewOpenAIProvider("oss", cfg.OSSBaseURL, cfg.OSSKey))
+	}
+
+	// 5b. Register providers from config file
+	if fileCfg != nil {
+		for _, p := range fileCfg.Providers {
+			if p.Name != "" && p.BaseURL != "" {
+				registry.Register(inference.NewOpenAIProvider(p.Name, p.BaseURL, p.APIKey))
+				log.Printf("✅ Registered provider %q from config file", p.Name)
+			}
+		}
+		// Config file defaults (env vars take precedence)
+		if fileCfg.DefaultProvider != "" && cfg.DefaultProvider == "ollama" {
+			cfg.DefaultProvider = fileCfg.DefaultProvider
+		}
+		if fileCfg.DefaultModel != "" && cfg.DefaultModel == "llama3.2:latest" {
+			cfg.DefaultModel = fileCfg.DefaultModel
+		}
 	}
 
 	// Set default provider from config

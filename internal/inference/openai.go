@@ -119,8 +119,9 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req *types.ChatCompletion
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	req.Stream = false
-	body, err := json.Marshal(req)
+	localReq := *req
+	localReq.Stream = false
+	body, err := json.Marshal(&localReq)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -157,8 +158,9 @@ func (p *OpenAIProvider) Complete(ctx context.Context, req *types.ChatCompletion
 func (p *OpenAIProvider) StreamChat(ctx context.Context, req *types.ChatCompletionRequest, out chan<- types.StreamEvent) error {
 	defer close(out)
 
-	req.Stream = true
-	body, err := json.Marshal(req)
+	localReq := *req
+	localReq.Stream = true
+	body, err := json.Marshal(&localReq)
 	if err != nil {
 		out <- types.StreamEvent{Type: types.EventError, Error: err, ErrorMessage: err.Error()}
 		return fmt.Errorf("marshal request: %w", err)

@@ -53,6 +53,10 @@ func RenderStream(ctx context.Context, events <-chan types.StreamEvent, w io.Wri
 			if state.pendingCount > 0 {
 				flushPending(&state, &raw, w)
 			}
+			// Reset any open ANSI formatting so the terminal is clean.
+			if state.inBold || state.inCodeBlock || state.inInline {
+				fmt.Fprint(w, Reset)
+			}
 			return raw.String(), ctx.Err()
 
 		case ev, ok := <-events:
