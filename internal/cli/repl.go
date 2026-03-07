@@ -8,7 +8,6 @@ import (
 	"io"
 	"strings"
 
-	"forge/internal/inference"
 	"forge/internal/session"
 	"forge/internal/store"
 	"forge/pkg/types"
@@ -17,7 +16,7 @@ import (
 // RunREPL starts an interactive chat session.
 // Creates a new session or resumes an existing one.
 // Blocks until the user exits (/exit, Ctrl+D, or EOF).
-func RunREPL(ctx context.Context, registry *inference.ProviderRegistry,
+func RunREPL(ctx context.Context, registry ModelResolver,
 	sessionMgr session.Manager, model string,
 	sessionID string, systemPrompt string,
 	in io.Reader, out io.Writer) error {
