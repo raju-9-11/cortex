@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"forge/internal/session"
@@ -297,12 +298,17 @@ func RunREPL(ctx context.Context, registry ModelResolver,
 	}
 }
 
+// maxInputSize is the maximum accumulated multi-line input size (1 MB).
+// If exceeded, input is truncated and a warning is printed to stderr.
+const maxInputSize = 1024 * 1024
+
 // readInput reads lines from the scanner until a blank line is encountered
 // (double Enter) or EOF. Slash commands (lines starting with "/") are returned
 // immediately without waiting for a blank line.
 // Returns the accumulated input and whether EOF was reached.
 func readInput(scanner *bufio.Scanner) (string, bool) {
 	var lines []string
+	totalSize := 0
 	for {
 		if !scanner.Scan() {
 			// EOF or error — return whatever we have.
@@ -323,6 +329,14 @@ func readInput(scanner *bufio.Scanner) (string, bool) {
 		if line == "" {
 			break
 		}
+
+		// Check accumulated size before appending.
+		totalSize += len(line) + 1 // +1 for the newline separator
+		if totalSize > maxInputSize {
+			fmt.Fprintf(os.Stderr, "Warning: input exceeds 1 MB limit, truncating.\n")
+			break
+		}
+
 		lines = append(lines, line)
 	}
 

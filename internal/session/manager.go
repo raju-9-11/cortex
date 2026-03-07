@@ -78,7 +78,7 @@ func (m *SessionManagerImpl) Create(ctx context.Context, params CreateParams) (*
 	}
 
 	sess := &store.Session{
-		ID:           "sess_" + uuid.NewString()[:8],
+		ID:           "sess_" + uuid.NewString()[:12],
 		UserID:       userID,
 		Title:        title,
 		Model:        model,
@@ -176,7 +176,7 @@ func (m *SessionManagerImpl) Delete(ctx context.Context, id string) error {
 // and updating the session's message_count and updated_at.
 func (m *SessionManagerImpl) AddMessage(ctx context.Context, sessionID string, msg *store.Message) error {
 	// Generate message ID and set fields.
-	msg.ID = "msg_" + uuid.NewString()[:8]
+	msg.ID = "msg_" + uuid.NewString()[:12]
 	msg.SessionID = sessionID
 	msg.CreatedAt = time.Now().UTC().Truncate(time.Millisecond)
 	msg.IsActive = true

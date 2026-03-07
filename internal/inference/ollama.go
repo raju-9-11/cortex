@@ -362,20 +362,28 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 						Arguments: argsStr,
 					}
 					activeToolCalls[i] = tce
-					out <- types.StreamEvent{
+					select {
+					case out <- types.StreamEvent{
 						Type:     types.EventToolCallStart,
 						ToolCall: tce,
+					}:
+					case <-ctx.Done():
+						return ctx.Err()
 					}
 				} else {
 					// Continuation – emit delta.
 					activeToolCalls[i].Arguments += argsStr
-					out <- types.StreamEvent{
+					select {
+					case out <- types.StreamEvent{
 						Type: types.EventToolCallDelta,
 						ToolCall: &types.ToolCallEvent{
 							ID:        tc.ID,
 							Name:      tc.Function.Name,
 							Arguments: argsStr,
 						},
+					}:
+					case <-ctx.Done():
+						return ctx.Err()
 					}
 				}
 			}
@@ -383,9 +391,13 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 
 		// Handle content delta.
 		if chunk.Message.Content != "" {
-			out <- types.StreamEvent{
+			select {
+			case out <- types.StreamEvent{
 				Type:  types.EventContentDelta,
 				Delta: chunk.Message.Content,
+			}:
+			case <-ctx.Done():
+				return ctx.Err()
 			}
 		}
 
@@ -393,14 +405,19 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 		if chunk.Done {
 			// Emit tool-call-complete events for any accumulated tool calls.
 			for _, tce := range activeToolCalls {
-				out <- types.StreamEvent{
+				select {
+				case out <- types.StreamEvent{
 					Type:     types.EventToolCallComplete,
 					ToolCall: tce,
+				}:
+				case <-ctx.Done():
+					return ctx.Err()
 				}
 			}
 
 			finishReason := translateFinishReason(chunk.DoneReason)
-			out <- types.StreamEvent{
+			select {
+			case out <- types.StreamEvent{
 				Type:         types.EventContentDone,
 				FinishReason: finishReason,
 				Usage: &types.Usage{
@@ -408,6 +425,9 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 					CompletionTokens: chunk.EvalCount,
 					TotalTokens:      chunk.PromptEvalCount + chunk.EvalCount,
 				},
+			}:
+			case <-ctx.Done():
+				return ctx.Err()
 			}
 			return nil
 		}

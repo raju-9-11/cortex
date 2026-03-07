@@ -318,3 +318,23 @@ func TestLoadConfigFile_EmptyProviders(t *testing.T) {
 		t.Errorf("len(Providers) = %d, want 0", len(fc.Providers))
 	}
 }
+
+func TestLoadConfigFile_UnknownFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "unknown.json")
+	content := `{
+		"default_provider": "ollama",
+		"bogus_field": "should cause an error"
+	}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fc, err := LoadConfigFile(path)
+	if err == nil {
+		t.Errorf("LoadConfigFile with unknown field: expected error, got nil (config: %+v)", fc)
+	}
+	if fc != nil {
+		t.Errorf("LoadConfigFile with unknown field: expected nil FileConfig, got %+v", fc)
+	}
+}

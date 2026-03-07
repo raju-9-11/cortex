@@ -134,6 +134,12 @@ func processDelta(delta string, state *renderState, raw *strings.Builder, w io.W
 			// ch was not part of the marker — fall through to process it normally.
 		}
 
+		// Inside code blocks, only triple-backtick can close — everything else is literal.
+		if state.inCodeBlock && ch != '`' {
+			emitChar(ch, state, raw, w)
+			continue // skip * handling
+		}
+
 		switch ch {
 		case '*':
 			// Start buffering — might be the first of '**'.

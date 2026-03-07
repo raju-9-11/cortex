@@ -1,15 +1,13 @@
 package app
 
 import (
-	"os"
 	"testing"
 )
 
 func TestNewSucceeds(t *testing.T) {
 	// Use a temp DB so we don't pollute the working directory.
 	tmpFile := t.TempDir() + "/test.db"
-	os.Setenv("FORGE_DB_PATH", tmpFile)
-	defer os.Unsetenv("FORGE_DB_PATH")
+	t.Setenv("FORGE_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {
@@ -36,8 +34,7 @@ func TestNewSucceeds(t *testing.T) {
 
 func TestNewWithVersion(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	os.Setenv("FORGE_DB_PATH", tmpFile)
-	defer os.Unsetenv("FORGE_DB_PATH")
+	t.Setenv("FORGE_DB_PATH", tmpFile)
 
 	application, err := New(WithVersion("1.2.3"))
 	if err != nil {
@@ -52,8 +49,7 @@ func TestNewWithVersion(t *testing.T) {
 
 func TestNewDefaultVersionIsDev(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	os.Setenv("FORGE_DB_PATH", tmpFile)
-	defer os.Unsetenv("FORGE_DB_PATH")
+	t.Setenv("FORGE_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {
@@ -69,15 +65,14 @@ func TestNewDefaultVersionIsDev(t *testing.T) {
 func TestNewMockFallback(t *testing.T) {
 	// Ensure no provider env vars are set so we hit mock fallback.
 	tmpFile := t.TempDir() + "/test.db"
-	os.Setenv("FORGE_DB_PATH", tmpFile)
-	defer os.Unsetenv("FORGE_DB_PATH")
+	t.Setenv("FORGE_DB_PATH", tmpFile)
 
 	// Clear all provider keys so no real providers are registered.
 	for _, key := range []string{
 		"OPENAI_API_KEY", "QWEN_API_KEY", "LLAMA_API_KEY",
 		"MINIMAX_API_KEY", "OSS_API_KEY",
 	} {
-		os.Unsetenv(key)
+		t.Setenv(key, "")
 	}
 
 	application, err := New()
@@ -102,8 +97,7 @@ func TestNewMockFallback(t *testing.T) {
 
 func TestCloseIdempotent(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	os.Setenv("FORGE_DB_PATH", tmpFile)
-	defer os.Unsetenv("FORGE_DB_PATH")
+	t.Setenv("FORGE_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {

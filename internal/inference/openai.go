@@ -220,30 +220,42 @@ func (p *OpenAIProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 
 			// Content deltas
 			if choice.Delta.Content != nil {
-				out <- types.StreamEvent{
+				select {
+				case out <- types.StreamEvent{
 					Type:  types.EventContentDelta,
 					Delta: *choice.Delta.Content,
+				}:
+				case <-ctx.Done():
+					return ctx.Err()
 				}
 			}
 
 			// Tool call deltas
 			for _, tc := range choice.Delta.ToolCalls {
 				if tc.Function.Name != "" {
-					out <- types.StreamEvent{
+					select {
+					case out <- types.StreamEvent{
 						Type: types.EventToolCallStart,
 						ToolCall: &types.ToolCallEvent{
 							ID:   tc.ID,
 							Name: tc.Function.Name,
 						},
+					}:
+					case <-ctx.Done():
+						return ctx.Err()
 					}
 				}
 				if tc.Function.Arguments != "" {
-					out <- types.StreamEvent{
+					select {
+					case out <- types.StreamEvent{
 						Type: types.EventToolCallDelta,
 						ToolCall: &types.ToolCallEvent{
 							ID:        tc.ID,
 							Arguments: tc.Function.Arguments,
 						},
+					}:
+					case <-ctx.Done():
+						return ctx.Err()
 					}
 				}
 			}
@@ -254,9 +266,13 @@ func (p *OpenAIProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 				if choice.FinishReason == "tool_calls" {
 					eventType = types.EventToolCallComplete
 				}
-				out <- types.StreamEvent{
+				select {
+				case out <- types.StreamEvent{
 					Type:         eventType,
 					FinishReason: choice.FinishReason,
+				}:
+				case <-ctx.Done():
+					return ctx.Err()
 				}
 			}
 		}

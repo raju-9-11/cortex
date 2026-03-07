@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -61,7 +62,9 @@ func LoadConfigFile(path string) (*FileConfig, error) {
 		return nil, fmt.Errorf("reading config file %s: %w", path, err)
 	}
 	var fc FileConfig
-	if err := json.Unmarshal(data, &fc); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&fc); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
 	}
 	return &fc, nil

@@ -46,12 +46,12 @@ func TestCreateWithDefaults(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// ID format: "sess_" + 8 hex chars
+	// ID format: "sess_" + 12 chars from UUID
 	if !strings.HasPrefix(sess.ID, "sess_") {
 		t.Errorf("expected ID prefix 'sess_', got %q", sess.ID)
 	}
-	if len(sess.ID) != 13 { // "sess_" (5) + 8 chars
-		t.Errorf("expected ID length 13, got %d (%q)", len(sess.ID), sess.ID)
+	if len(sess.ID) != 17 { // "sess_" (5) + 12 chars
+		t.Errorf("expected ID length 17, got %d (%q)", len(sess.ID), sess.ID)
 	}
 
 	// Defaults
