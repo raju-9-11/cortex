@@ -90,28 +90,7 @@ func (p *OpenAIProvider) ListModels(ctx context.Context) ([]types.ModelInfo, err
 }
 
 func (p *OpenAIProvider) CountTokens(messages []types.ChatMessage) (int, error) {
-	// Estimate: ~4 chars per token for English text.
-	// Each message has ~4 tokens overhead (role, delimiters).
-	// Stopgap until tiktoken-go integration.
-	total := 0
-	for _, msg := range messages {
-		total += 4 // per-message overhead
-		switch v := msg.Content.(type) {
-		case string:
-			total += len(v) / 4
-		default:
-			data, _ := json.Marshal(v)
-			total += len(data) / 4
-		}
-		for _, tc := range msg.ToolCalls {
-			total += len(tc.Function.Name)/4 + len(tc.Function.Arguments)/4 + 4
-		}
-	}
-	total += 2 // conversation overhead
-	if total < 1 {
-		total = 1
-	}
-	return total, nil
+	return EstimateTokens(messages), nil
 }
 
 func (p *OpenAIProvider) Complete(ctx context.Context, req *types.ChatCompletionRequest) (*types.ChatCompletionResponse, error) {

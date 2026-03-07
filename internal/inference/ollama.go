@@ -449,12 +449,7 @@ func (p *OllamaProvider) StreamChat(ctx context.Context, req *types.ChatCompleti
 // len(content)/4 tokens plus 4 tokens of per-message overhead. An additional
 // 2 tokens cover conversation-level overhead.
 func (p *OllamaProvider) CountTokens(messages []types.ChatMessage) (int, error) {
-	total := 2 // conversation overhead
-	for _, msg := range messages {
-		content := stringifyContent(msg.Content)
-		total += len(content)/4 + 4 // char-based estimate + per-message overhead
-	}
-	return total, nil
+	return EstimateTokens(messages), nil
 }
 
 // ---------------------------------------------------------------------------
