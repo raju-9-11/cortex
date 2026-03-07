@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"forge/internal/inference"
 	"forge/pkg/types"
@@ -29,18 +30,14 @@ func (p *Pipeline) Stream(ctx context.Context, req *types.ChatCompletionRequest,
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	// Stream-level timeout: 5 minutes max for the entire completion.
+	const (
+		streamTimeout = 5 * time.Minute
+		stallTimeout  = 60 * time.Second
+	)
 
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func() {
-			select {
-			case <-cn.CloseNotify():
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
-	}
+	ctx, cancel := context.WithTimeout(ctx, streamTimeout)
+	defer cancel()
 
 	events := make(chan types.StreamEvent, 32)
 	errCh := make(chan error, 1)
@@ -49,66 +46,143 @@ func (p *Pipeline) Stream(ctx context.Context, req *types.ChatCompletionRequest,
 		errCh <- p.provider.StreamChat(ctx, req, events)
 	}()
 
-	for event := range events {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
+	stallTimer := time.NewTimer(stallTimeout)
+	defer stallTimer.Stop()
 
-		if event.Type == types.EventError {
-			// Write error and stop
-			writeSSEError(w, event.Error)
-			break
-		}
+	for {
+		select {
+		case event, ok := <-events:
+			if !ok {
+				// Channel closed — provider is done
+				goto done
+			}
 
-		if err := writeSSEEvent(w, event, req.Model); err != nil {
+			// Reset stall timer on every received event
+			if !stallTimer.Stop() {
+				select {
+				case <-stallTimer.C:
+				default:
+				}
+			}
+			stallTimer.Reset(stallTimeout)
+
+			if event.Type == types.EventError {
+				writeSSEError(w, event.Error)
+				flusher.Flush()
+				goto done
+			}
+
+			if err := writeSSEEvent(w, event, req.Model); err != nil {
+				cancel()
+				return fmt.Errorf("write SSE event: %w", err)
+			}
+			flusher.Flush()
+
+		case <-stallTimer.C:
 			cancel()
-			return err
+			stallErr := fmt.Errorf("upstream stalled: no event for %v", stallTimeout)
+			writeSSEError(w, stallErr)
+			flusher.Flush()
+			goto done
+
+		case <-ctx.Done():
+			writeSSEError(w, ctx.Err())
+			flusher.Flush()
+			goto done
 		}
-		flusher.Flush()
 	}
 
-	// Always write [DONE] at the very end
+done:
 	fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
 
-	return <-errCh
+	// Drain the error channel — don't leak the goroutine
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("provider goroutine did not exit within 5s")
+	}
 }
 
 func writeSSEEvent(w http.ResponseWriter, event types.StreamEvent, model string) error {
-	// Translate StreamEvent back to OpenAI ChatCompletionChunk
 	chunk := types.ChatCompletionChunk{
 		Object: "chat.completion.chunk",
 		Model:  model,
 	}
 
-	if event.Type == types.EventContentDelta {
-		chunk.Choices = []types.ChunkChoice{
-			{
+	switch event.Type {
+	case types.EventContentDelta:
+		chunk.Choices = []types.ChunkChoice{{
+			Delta: types.Delta{Content: &event.Delta},
+		}}
+
+	case types.EventToolCallStart:
+		if event.ToolCall != nil {
+			chunk.Choices = []types.ChunkChoice{{
 				Delta: types.Delta{
-					Content: &event.Delta,
+					ToolCalls: []types.ToolCall{{
+						ID:   event.ToolCall.ID,
+						Type: "function",
+						Function: types.FunctionCall{
+							Name: event.ToolCall.Name,
+						},
+					}},
 				},
-			},
+			}}
 		}
-	} else if event.Type == types.EventContentDone {
-		chunk.Choices = []types.ChunkChoice{
-			{
-				FinishReason: event.FinishReason,
-			},
+
+	case types.EventToolCallDelta:
+		if event.ToolCall != nil {
+			chunk.Choices = []types.ChunkChoice{{
+				Delta: types.Delta{
+					ToolCalls: []types.ToolCall{{
+						ID: event.ToolCall.ID,
+						Function: types.FunctionCall{
+							Arguments: event.ToolCall.Arguments,
+						},
+					}},
+				},
+			}}
 		}
+
+	case types.EventToolCallComplete, types.EventContentDone:
+		chunk.Choices = []types.ChunkChoice{{
+			FinishReason: event.FinishReason,
+		}}
+
+	case types.EventStatus:
+		if event.Usage != nil {
+			chunk.Usage = event.Usage
+		}
+		if chunk.Usage == nil {
+			return nil
+		}
+
+	default:
+		return nil
 	}
 
-	if len(chunk.Choices) > 0 {
-		data, err := json.Marshal(chunk)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(w, "data: %s\n\n", string(data))
-		return err
+	if len(chunk.Choices) == 0 && chunk.Usage == nil {
+		return nil
 	}
 
-	return nil
+	data, err := json.Marshal(chunk)
+	if err != nil {
+		return fmt.Errorf("marshal SSE chunk: %w", err)
+	}
+	_, err = fmt.Fprintf(w, "data: %s\n\n", data)
+	return err
 }
 
 func writeSSEError(w http.ResponseWriter, err error) {
-	fmt.Fprintf(w, "event: error\ndata: %s\n\n", fmt.Sprintf(`{"error": "%s"}`, err.Error()))
+	errResp := types.APIErrorResponse{
+		Error: types.APIError{
+			Code:    types.ErrCodeStreamFailed,
+			Message: err.Error(),
+			Type:    types.ErrorTypeServer,
+		},
+	}
+	data, _ := json.Marshal(errResp)
+	fmt.Fprintf(w, "event: error\ndata: %s\n\n", data)
 }

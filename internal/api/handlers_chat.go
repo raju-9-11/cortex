@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 
 	"forge/internal/inference"
 	"forge/internal/streaming"
@@ -11,11 +13,11 @@ import (
 )
 
 type Router struct {
-	providers map[string]inference.InferenceProvider
+	registry *inference.ProviderRegistry
 }
 
-func NewRouter(providers map[string]inference.InferenceProvider) *Router {
-	return &Router{providers: providers}
+func NewRouter(registry *inference.ProviderRegistry) *Router {
+	return &Router{registry: registry}
 }
 
 func (router *Router) SetupRoutes(r chi.Router) {
@@ -24,31 +26,44 @@ func (router *Router) SetupRoutes(r chi.Router) {
 }
 
 func (router *Router) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
-	var req types.ChatCompletionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Validate Content-Type
+	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
+		types.WriteError(w, http.StatusUnsupportedMediaType, types.ErrCodeUnsupportedMedia,
+			types.ErrorTypeInvalidRequest, "Content-Type must be application/json")
 		return
 	}
 
-	provider := router.getProviderForModel(req.Model)
-	if provider == nil {
-		http.Error(w, "Provider not found for model: "+req.Model, http.StatusNotFound)
+	var req types.ChatCompletionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		types.WriteError(w, http.StatusBadRequest, types.ErrCodeMalformedJSON,
+			types.ErrorTypeInvalidRequest, "Invalid JSON in request body: "+err.Error())
 		return
 	}
+
+	provider, resolvedModel, err := router.registry.Resolve(req.Model)
+	if err != nil {
+		types.WriteError(w, http.StatusNotFound, types.ErrCodeModelNotFound,
+			types.ErrorTypeNotFound, "No provider found for model: "+req.Model)
+		return
+	}
+	// Replace model with resolved name (strips "provider/" prefix if used)
+	req.Model = resolvedModel
 
 	if req.Stream {
 		pipeline := streaming.NewPipeline(provider)
-		err := pipeline.Stream(r.Context(), &req, w)
-		if err != nil {
-			// If already streaming, error is in SSE. Else:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := pipeline.Stream(r.Context(), &req, w); err != nil {
+			// Headers already sent — cannot use http.Error or types.WriteError.
+			// Error was already written as an SSE error event by the pipeline.
+			log.Printf("[ERROR] stream error model=%s provider=%s: %v",
+				resolvedModel, provider.Name(), err)
 		}
 		return
 	}
 
 	resp, err := provider.Complete(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		types.WriteError(w, http.StatusInternalServerError, types.ErrCodeInternalError,
+			types.ErrorTypeServer, "Inference failed: "+err.Error())
 		return
 	}
 
@@ -57,42 +72,10 @@ func (router *Router) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 }
 
 func (router *Router) HandleModels(w http.ResponseWriter, r *http.Request) {
-	var models []types.ModelInfo
-	for _, p := range router.providers {
-		m, err := p.ListModels(r.Context())
-		if err == nil {
-			models = append(models, m...)
-		}
-	}
-
+	models := router.registry.ListAllModels(r.Context())
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(types.ModelListResponse{
 		Object: "list",
 		Data:   models,
 	})
-}
-
-// Very basic routing based on model prefixes or direct matching
-func (router *Router) getProviderForModel(model string) inference.InferenceProvider {
-	// Let's assume the provider name is passed as prefix like "openai/gpt-4"
-	// For MVP: Check provider names directly, or default to first if only one exists.
-	// We'll hardcode some simple mappings:
-	if len(router.providers) == 0 {
-		return nil
-	}
-
-	for name, p := range router.providers {
-		// e.g. "openai" handles "gpt-..."
-		// For our testing we use provider name matching
-		if name == model || (model == "qwen" && name == "qwen") || (model == "llama" && name == "llama") || (model == "minimax" && name == "minimax") || (model == "oss" && name == "oss") {
-			return p
-		}
-	}
-
-	// Default to first provider
-	for _, p := range router.providers {
-		return p
-	}
-
-	return nil
 }

@@ -6,36 +6,78 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"forge/internal/api"
 	"forge/internal/config"
 	"forge/internal/inference"
+	"forge/internal/session"
+	"forge/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	cfg       *config.Config
-	router    *api.Router
+	cfg        *config.Config
+	registry   *inference.ProviderRegistry
+	store      store.Store
+	sessionMgr session.Manager
 	httpServer *http.Server
 }
 
-func New(cfg *config.Config, providers map[string]inference.InferenceProvider) *Server {
-	apiRouter := api.NewRouter(providers)
-
+func New(cfg *config.Config, registry *inference.ProviderRegistry, st store.Store, sessionMgr session.Manager, authMiddleware func(http.Handler) http.Handler) *Server {
 	r := chi.NewRouter()
+
+	// Standard middleware
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(corsMiddleware(cfg))
 
-	// Basic CORS
-	r.Use(func(next http.Handler) http.Handler {
+	// Health endpoint — public, no auth required (load-balancer checks)
+	healthHandler := api.NewHealthHandler(st, registry, cfg.Version)
+	r.Group(func(r chi.Router) {
+		healthHandler.RegisterRoutes(r)
+	})
+
+	// Protected routes — auth middleware applied
+	r.Group(func(r chi.Router) {
+		r.Use(authMiddleware)
+
+		// Chat completions (OpenAI-compatible)
+		chatRouter := api.NewRouter(registry)
+		chatRouter.SetupRoutes(r)
+
+		// Session CRUD
+		sessionHandler := api.NewSessionHandler(sessionMgr, registry)
+		sessionHandler.RegisterRoutes(r)
+	})
+
+	return &Server{
+		cfg:        cfg,
+		registry:   registry,
+		store:      st,
+		sessionMgr: sessionMgr,
+		httpServer: &http.Server{
+			Addr:    cfg.Addr,
+			Handler: r,
+		},
+	}
+}
+
+// corsMiddleware returns a middleware that sets CORS headers based on config.
+func corsMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			origin := "*"
+			if len(cfg.CORSOrigins) > 0 {
+				origin = strings.Join(cfg.CORSOrigins, ", ")
+			}
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
@@ -43,17 +85,6 @@ func New(cfg *config.Config, providers map[string]inference.InferenceProvider) *
 			}
 			next.ServeHTTP(w, r)
 		})
-	})
-
-	apiRouter.SetupRoutes(r)
-
-	return &Server{
-		cfg:    cfg,
-		router: apiRouter,
-		httpServer: &http.Server{
-			Addr:    cfg.Addr,
-			Handler: r,
-		},
 	}
 }
 
