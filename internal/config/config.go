@@ -20,6 +20,9 @@ type Config struct {
 	// Auth
 	APIKey string `env:"FORGE_API_KEY"` // If set -> require auth; if empty -> no auth
 
+	// Config file
+	ConfigFilePath string `env:"FORGE_CONFIG"` // Path to JSON config file
+
 	// Inference Providers
 	DefaultProvider string `env:"FORGE_PROVIDER" envDefault:"qwen"`
 	OllamaURL       string `env:"OLLAMA_URL" envDefault:"http://localhost:11434"`

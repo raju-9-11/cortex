@@ -35,34 +35,85 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	// 4. Create provider registry
+	// 4. Load config file
+	configPath := config.DiscoverConfigFile(cfg.ConfigFilePath)
+	if configPath != "" {
+		log.Printf("Loading config from %s", configPath)
+	}
+	fileConfig, err := config.LoadConfigFile(configPath)
+	if err != nil {
+		log.Printf("[WARN] Failed to load config file: %v", err)
+	}
+
+	// Apply config file defaults (env vars take precedence)
+	if fileConfig != nil {
+		// Only apply if env var wasn't explicitly set (still at default value)
+		if cfg.DefaultProvider == "qwen" && fileConfig.DefaultProvider != "" {
+			cfg.DefaultProvider = fileConfig.DefaultProvider
+		}
+		if cfg.DefaultModel == "qwen2.5:0.5b" && fileConfig.DefaultModel != "" {
+			cfg.DefaultModel = fileConfig.DefaultModel
+		}
+	}
+
+	// 5. Create provider registry
 	registry := inference.NewProviderRegistry()
 
-	// 5. Register providers
+	// 6. Register providers from config file
+	if fileConfig != nil && len(fileConfig.Providers) > 0 {
+		for _, p := range fileConfig.Providers {
+			if p.Name == "ollama" {
+				ollamaP := inference.NewOllamaProvider(p.BaseURL)
+				if ollamaP.Probe(context.Background()) {
+					registry.Register(ollamaP)
+					log.Printf("✅ Config file: registered Ollama at %s", p.BaseURL)
+				}
+			} else {
+				registry.Register(inference.NewOpenAIProvider(p.Name, p.BaseURL, p.APIKey))
+				log.Printf("✅ Config file: registered %s at %s", p.Name, p.BaseURL)
+			}
+		}
+	}
+
+	// 7. Register providers from env vars (skip if already registered via config file)
+	registeredProviders := registry.Providers()
+
 	// Ollama — auto-detect at configured URL
-	ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
-	if ollamaProvider.Probe(context.Background()) {
-		registry.Register(ollamaProvider)
-		log.Printf("✅ Detected Ollama at %s", cfg.OllamaURL)
-	} else {
-		log.Printf("⚠️  Ollama not detected at %s", cfg.OllamaURL)
+	if _, exists := registeredProviders["ollama"]; !exists {
+		ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
+		if ollamaProvider.Probe(context.Background()) {
+			registry.Register(ollamaProvider)
+			log.Printf("✅ Detected Ollama at %s", cfg.OllamaURL)
+		} else {
+			log.Printf("⚠️  Ollama not detected at %s", cfg.OllamaURL)
+		}
 	}
 
 	// OpenAI-compatible providers
 	if cfg.OpenAIKey != "" {
-		registry.Register(inference.NewOpenAIProvider("openai", cfg.OpenAIBaseURL, cfg.OpenAIKey))
+		if _, exists := registeredProviders["openai"]; !exists {
+			registry.Register(inference.NewOpenAIProvider("openai", cfg.OpenAIBaseURL, cfg.OpenAIKey))
+		}
 	}
 	if cfg.QwenKey != "" {
-		registry.Register(inference.NewOpenAIProvider("qwen", cfg.QwenBaseURL, cfg.QwenKey))
+		if _, exists := registeredProviders["qwen"]; !exists {
+			registry.Register(inference.NewOpenAIProvider("qwen", cfg.QwenBaseURL, cfg.QwenKey))
+		}
 	}
 	if cfg.LlamaKey != "" {
-		registry.Register(inference.NewOpenAIProvider("llama", cfg.LlamaBaseURL, cfg.LlamaKey))
+		if _, exists := registeredProviders["llama"]; !exists {
+			registry.Register(inference.NewOpenAIProvider("llama", cfg.LlamaBaseURL, cfg.LlamaKey))
+		}
 	}
 	if cfg.MinimaxKey != "" {
-		registry.Register(inference.NewOpenAIProvider("minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey))
+		if _, exists := registeredProviders["minimax"]; !exists {
+			registry.Register(inference.NewOpenAIProvider("minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey))
+		}
 	}
 	if cfg.OSSKey != "" {
-		registry.Register(inference.NewOpenAIProvider("oss", cfg.OSSBaseURL, cfg.OSSKey))
+		if _, exists := registeredProviders["oss"]; !exists {
+			registry.Register(inference.NewOpenAIProvider("oss", cfg.OSSBaseURL, cfg.OSSKey))
+		}
 	}
 
 	// Set default provider from config
@@ -70,7 +121,7 @@ func main() {
 		registry.SetDefault(cfg.DefaultProvider)
 	}
 
-	// 6. Refresh model map
+	// 8. Refresh model map
 	if err := registry.RefreshModelMap(context.Background()); err != nil {
 		log.Printf("[WARN] Initial model map refresh failed: %v", err)
 	}
@@ -85,10 +136,10 @@ func main() {
 		registry.SetDefault("qwen")
 	}
 
-	// 7. Create session manager
+	// 9. Create session manager
 	sessionMgr := session.NewManager(db, cfg.DefaultModel)
 
-	// 8. Create auth middleware
+	// 10. Create auth middleware
 	authMiddleware := auth.NewMiddleware(cfg.APIKey)
 
 	// Startup banner
@@ -102,7 +153,7 @@ func main() {
 	fmt.Printf("  Models:    %d available\n", len(models))
 	fmt.Println()
 
-	// 9. Create and start server with all dependencies
+	// 11. Create and start server with all dependencies
 	srv := server.New(cfg, registry, db, sessionMgr, authMiddleware)
 	srv.StartAndServe()
 }
