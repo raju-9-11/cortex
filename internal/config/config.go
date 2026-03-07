@@ -21,12 +21,12 @@ type Config struct {
 	APIKey string `env:"FORGE_API_KEY"` // If set -> require auth; if empty -> no auth
 
 	// Inference Providers
-	DefaultProvider string `env:"FORGE_PROVIDER" envDefault:"qwen"`
+	DefaultProvider string `env:"FORGE_PROVIDER" envDefault:"ollama"`
 	OllamaURL       string `env:"OLLAMA_URL" envDefault:"http://localhost:11434"`
 	OpenAIKey       string `env:"OPENAI_API_KEY"`
 	OpenAIBaseURL   string `env:"OPENAI_BASE_URL" envDefault:"https://api.openai.com/v1"`
 	AnthropicKey    string `env:"ANTHROPIC_API_KEY"`
-	DefaultModel    string `env:"FORGE_MODEL" envDefault:"qwen2.5:0.5b"`
+	DefaultModel    string `env:"FORGE_MODEL" envDefault:"llama3.2:latest"`
 
 	// Qwen/Minimax/OSS Configs mapping to OpenAI compatible endpoints
 	QwenBaseURL string `env:"QWEN_BASE_URL"`
