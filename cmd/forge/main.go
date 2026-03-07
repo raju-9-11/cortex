@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -16,75 +17,85 @@ import (
 var version = "dev"
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+}
+
+// run dispatches subcommands and returns an exit code.
+// Separated from main() for testability.
+func run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
+	if len(args) > 0 {
+		switch args[0] {
 		case "help", "--help", "-h":
-			cli.PrintUsage(os.Stdout, version)
-			return
+			cli.PrintUsage(stdout, version)
+			return 0
 		case "version", "--version":
-			cli.PrintVersion(os.Stdout, version)
-			return
+			cli.PrintVersion(stdout, version)
+			return 0
 		case "run":
-			runCmd()
-			return
+			return runCmd(args[1:], stdin, stdout, stderr)
 		case "chat":
-			chatCmd()
-			return
+			return chatCmd(args[1:], stdin, stdout, stderr)
 		case "sessions":
-			sessionsCmd()
-			return
+			return sessionsCmd(args[1:], stdout, stderr)
 		case "models":
-			modelsCmd()
-			return
+			return modelsCmd(args[1:], stdout, stderr)
 		default:
-			cli.PrintUnknownCommand(os.Stderr, os.Args[1])
-			os.Exit(1)
+			cli.PrintUnknownCommand(stderr, args[0])
+			return 1
 		}
 	}
+	return startServer(stdout, stderr)
+}
 
-	// No args → start HTTP server
+// startServer starts the Forge HTTP API server.
+func startServer(stdout, stderr io.Writer) int {
 	application, err := app.New(app.WithVersion(version))
 	if err != nil {
-		log.Fatalf("Failed to initialize: %v", err)
+		log.New(stderr, "", 0).Fatalf("Failed to initialize: %v", err)
+		return 1
 	}
 	defer application.Close()
 
 	// Startup banner
 	models := application.Registry.ListAllModels(context.Background())
-	fmt.Printf("\n🔥 Forge %s\n", application.Config.Version)
-	fmt.Printf("  API:    http://localhost%s/v1/chat/completions\n", application.Config.Addr)
-	fmt.Printf("  Health: http://localhost%s/api/health\n", application.Config.Addr)
-	fmt.Printf("  Chat UI: http://localhost%s/chat\n", application.Config.Addr)
-	fmt.Println()
-	fmt.Printf("  Providers: %d registered\n", len(application.Registry.Providers()))
-	fmt.Printf("  Models:    %d available\n", len(models))
-	fmt.Println()
+	fmt.Fprintf(stdout, "\n🔥 Forge %s\n", application.Config.Version)
+	fmt.Fprintf(stdout, "  API:    http://localhost%s/v1/chat/completions\n", application.Config.Addr)
+	fmt.Fprintf(stdout, "  Health: http://localhost%s/api/health\n", application.Config.Addr)
+	fmt.Fprintf(stdout, "  Chat UI: http://localhost%s/chat\n", application.Config.Addr)
+	fmt.Fprintln(stdout)
+	fmt.Fprintf(stdout, "  Providers: %d registered\n", len(application.Registry.Providers()))
+	fmt.Fprintf(stdout, "  Models:    %d available\n", len(models))
+	fmt.Fprintln(stdout)
 
 	srv := server.New(application.Config, application.Registry, application.Store, application.SessionMgr, application.Auth)
 	srv.StartAndServe()
+	return 0
 }
 
-func runCmd() {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+func runCmd(args []string, stdin *os.File, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	prompt := fs.String("prompt", "", "Prompt text")
 	model := fs.String("model", "", "Model to use (e.g., ollama/llama3.2)")
 	system := fs.String("system", "", "System prompt")
-	fs.Parse(os.Args[2:])
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
 
-	promptText, err := cli.ReadPrompt(os.Stdin, *prompt)
+	promptText, err := cli.ReadPrompt(stdin, *prompt)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
 		if err == cli.ErrNoPrompt {
-			fmt.Fprintln(os.Stderr, "Usage: forge run --prompt \"your question here\"")
-			fmt.Fprintln(os.Stderr, "       echo \"your question\" | forge run")
+			fmt.Fprintln(stderr, "Usage: forge run --prompt \"your question here\"")
+			fmt.Fprintln(stderr, "       echo \"your question\" | forge run")
 		}
-		os.Exit(1)
+		return 1
 	}
 
 	application, err := app.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
 	defer application.Close()
 
@@ -96,24 +107,28 @@ func runCmd() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	_, err = cli.RunOnce(ctx, application.Registry, useModel, *system, promptText, os.Stdout)
+	_, err = cli.RunOnce(ctx, application.Registry, useModel, *system, promptText, stdout)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "\nError: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
-func chatCmd() {
-	fs := flag.NewFlagSet("chat", flag.ExitOnError)
+func chatCmd(args []string, stdin *os.File, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("chat", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	model := fs.String("model", "", "Model to use")
 	sessionID := fs.String("session", "", "Resume session by ID")
 	system := fs.String("system", "", "System prompt for new sessions")
-	fs.Parse(os.Args[2:])
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
 
 	application, err := app.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
 	defer application.Close()
 
@@ -125,56 +140,65 @@ func chatCmd() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	if err := cli.RunREPL(ctx, application.Registry, application.SessionMgr, useModel, *sessionID, *system, os.Stdin, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	if err := cli.RunREPL(ctx, application.Registry, application.SessionMgr, useModel, *sessionID, *system, stdin, stdout); err != nil {
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
-func sessionsCmd() {
-	fs := flag.NewFlagSet("sessions", flag.ExitOnError)
+func sessionsCmd(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("sessions", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	limit := fs.Int("limit", 0, "Limit number of results")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	fs.Parse(os.Args[2:])
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
 
-	args := fs.Args()
+	remaining := fs.Args()
 	action := ""
 	targetID := ""
-	if len(args) > 0 {
-		action = args[0]
+	if len(remaining) > 0 {
+		action = remaining[0]
 	}
-	if len(args) > 1 {
-		targetID = args[1]
+	if len(remaining) > 1 {
+		targetID = remaining[1]
 	}
 
 	application, err := app.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
 	defer application.Close()
 
-	if err := cli.RunSessions(context.Background(), application.SessionMgr, action, targetID, *limit, *jsonOut, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	if err := cli.RunSessions(context.Background(), application.SessionMgr, action, targetID, *limit, *jsonOut, stdout); err != nil {
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
-func modelsCmd() {
-	fs := flag.NewFlagSet("models", flag.ExitOnError)
+func modelsCmd(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("models", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	provider := fs.String("provider", "", "Filter by provider name")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
-	fs.Parse(os.Args[2:])
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
 
 	application, err := app.New()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
 	defer application.Close()
 
-	if err := cli.RunModels(context.Background(), application.Registry, *provider, application.Config.DefaultProvider, application.Config.DefaultModel, *jsonOut, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	if err := cli.RunModels(context.Background(), application.Registry, *provider, application.Config.DefaultProvider, application.Config.DefaultModel, *jsonOut, stdout); err != nil {
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
 	}
+	return 0
 }
