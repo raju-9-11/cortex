@@ -7,6 +7,7 @@ import (
 "io"
 "log"
 "os"
+"os/signal"
 "strings"
 
 "forge/internal/app"
@@ -14,6 +15,7 @@ import (
 "forge/internal/config"
 "forge/internal/inference"
 "forge/internal/server"
+"forge/internal/session"
 "forge/internal/store"
 )
 
@@ -33,9 +35,8 @@ case "run":
 runCmd()
 return
 case "chat":
-// TODO: WU-07 will implement this
-fmt.Fprintln(os.Stderr, "Error: 'forge chat' is not yet implemented")
-os.Exit(1)
+chatCmd()
+return
 case "sessions":
 // TODO: WU-08 will implement this
 fmt.Fprintln(os.Stderr, "Error: 'forge sessions' is not yet implemented")
@@ -168,6 +169,81 @@ ctx := context.Background()
 _, err = cli.RunOnce(ctx, registry, useModel, *system, promptText, os.Stdout)
 if err != nil {
 fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
+os.Exit(1)
+}
+}
+
+func chatCmd() {
+fs := flag.NewFlagSet("chat", flag.ExitOnError)
+model := fs.String("model", "", "Model to use")
+sessionID := fs.String("session", "", "Resume session by ID")
+system := fs.String("system", "", "System prompt for new sessions")
+fs.Parse(os.Args[2:])
+
+cfg, err := config.Load()
+if err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+
+db, err := store.NewSQLiteStore(cfg.SQLitePath)
+if err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+defer db.Close()
+
+if err := db.Migrate(context.Background()); err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+
+registry := inference.NewProviderRegistry()
+
+ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
+if ollamaProvider.Probe(context.Background()) {
+registry.Register(ollamaProvider)
+}
+if cfg.OpenAIKey != "" {
+registry.Register(inference.NewOpenAIProvider("openai", cfg.OpenAIBaseURL, cfg.OpenAIKey))
+}
+if cfg.QwenKey != "" {
+registry.Register(inference.NewOpenAIProvider("qwen", cfg.QwenBaseURL, cfg.QwenKey))
+}
+if cfg.LlamaKey != "" {
+registry.Register(inference.NewOpenAIProvider("llama", cfg.LlamaBaseURL, cfg.LlamaKey))
+}
+if cfg.MinimaxKey != "" {
+registry.Register(inference.NewOpenAIProvider("minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey))
+}
+if cfg.OSSKey != "" {
+registry.Register(inference.NewOpenAIProvider("oss", cfg.OSSBaseURL, cfg.OSSKey))
+}
+
+if cfg.DefaultProvider != "" {
+registry.SetDefault(cfg.DefaultProvider)
+}
+
+registry.RefreshModelMap(context.Background())
+
+if len(registry.Providers()) == 0 {
+registry.Register(inference.NewMockProvider("qwen", []string{"Hi", " I", " am", " Qwen", "!"}))
+registry.Register(inference.NewMockProvider("llama", []string{"Llama", " ", "here", "!"}))
+registry.SetDefault("qwen")
+}
+
+sessionMgr := session.NewManager(db, cfg.DefaultModel)
+
+useModel := cfg.DefaultModel
+if *model != "" {
+useModel = *model
+}
+
+ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+defer cancel()
+
+if err := cli.RunREPL(ctx, registry, sessionMgr, useModel, *sessionID, *system, os.Stdin, os.Stdout); err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 os.Exit(1)
 }
 }
