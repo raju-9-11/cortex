@@ -244,63 +244,38 @@ func RunREPL(ctx context.Context, registry *inference.ProviderRegistry,
 		// cancels only the current streaming, not the whole REPL.
 		genCtx, genCancel := context.WithCancel(ctx)
 
-		// Launch streaming in a goroutine.
 		errCh := make(chan error, 1)
 		go func() {
 			errCh <- provider.StreamChat(genCtx, req, events)
 		}()
 
-		// Collect and print deltas.
-		var fullText strings.Builder
-		cancelled := false
-
 		fmt.Fprintf(out, "\n")
-		for ev := range events {
-			select {
-			case <-genCtx.Done():
-				cancelled = true
-				// Drain remaining events.
-				for range events {
-				}
-				break
-			default:
-			}
-			if cancelled {
-				break
-			}
+		assistantContent, streamErr := RenderStream(genCtx, events, out)
 
-			switch ev.Type {
-			case types.EventContentDelta:
-				fmt.Fprint(out, ev.Delta)
-				fullText.WriteString(ev.Delta)
-			case types.EventContentDone:
-				// Streaming complete.
-			case types.EventError:
-				errMsg := ev.ErrorMessage
-				if ev.Error != nil {
-					errMsg = ev.Error.Error()
-				}
-				fmt.Fprintf(out, "\nError from provider: %s\n", errMsg)
+		// Drain remaining events so the provider goroutine can finish
+		if genCtx.Err() != nil {
+			for range events {
 			}
 		}
 
-		streamErr := <-errCh
+		providerErr := <-errCh
 		genCancel()
 
-		if cancelled || (streamErr != nil && streamErr == context.Canceled) {
-			fmt.Fprintf(out, "\n[cancelled]\n")
+		if streamErr == context.Canceled || providerErr == context.Canceled {
+			fmt.Fprintf(out, "[cancelled]\n")
 			continue
 		}
 
-		if streamErr != nil {
-			fmt.Fprintf(out, "\nError: %v\n", streamErr)
+		if streamErr != nil || providerErr != nil {
+			if providerErr != nil && streamErr == nil {
+				fmt.Fprintf(out, "\nError: %v\n", providerErr)
+			}
 			continue
 		}
 
-		fmt.Fprintf(out, "\n\n")
+		fmt.Fprintf(out, "\n")
 
 		// 7. Save assistant message.
-		assistantContent := fullText.String()
 		if assistantContent != "" {
 			if err := sessionMgr.AddMessage(ctx, sess.ID, &store.Message{
 				Role:    "assistant",
