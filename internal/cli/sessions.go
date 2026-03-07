@@ -115,13 +115,6 @@ func deleteSession(ctx context.Context, mgr session.Manager, id string, w io.Wri
 	return nil
 }
 
-// truncate shortens a string with ellipsis if it exceeds maxLen.
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
 
 // formatTimeAgo formats a time as a relative duration like "2h ago", "3d ago".
 func formatTimeAgo(t time.Time) string {
