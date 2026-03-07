@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"forge/internal/auth"
+	"forge/internal/cli"
 	"forge/internal/config"
 	"forge/internal/inference"
 	"forge/internal/server"
@@ -16,6 +19,15 @@ import (
 var version = "dev"
 
 func main() {
+	// Check for subcommands before bootstrapping the full server.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "sessions":
+			sessionsCmd()
+			return
+		}
+	}
+
 	// 1. Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -105,4 +117,45 @@ func main() {
 	// 9. Create and start server with all dependencies
 	srv := server.New(cfg, registry, db, sessionMgr, authMiddleware)
 	srv.StartAndServe()
+}
+
+func sessionsCmd() {
+	fs := flag.NewFlagSet("sessions", flag.ExitOnError)
+	limit := fs.Int("limit", 0, "Limit number of results")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Parse(os.Args[2:])
+
+	// Determine action and target
+	args := fs.Args()
+	action := ""
+	targetID := ""
+	if len(args) > 0 {
+		action = args[0]
+	}
+	if len(args) > 1 {
+		targetID = args[1]
+	}
+
+	// Bootstrap minimal dependencies
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	db, err := store.NewSQLiteStore(cfg.SQLitePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	if err := db.Migrate(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	sessionMgr := session.NewManager(db, cfg.DefaultModel)
+
+	if err := cli.RunSessions(context.Background(), sessionMgr, action, targetID, *limit, *jsonOut, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
