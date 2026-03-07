@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"forge/internal/auth"
+	"forge/internal/cli"
 	"forge/internal/config"
 	"forge/internal/inference"
 	"forge/internal/server"
@@ -16,6 +19,15 @@ import (
 var version = "dev"
 
 func main() {
+	// Check for subcommands
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "models":
+			modelsCmd()
+			return
+		}
+	}
+
 	// 1. Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -105,4 +117,71 @@ func main() {
 	// 9. Create and start server with all dependencies
 	srv := server.New(cfg, registry, db, sessionMgr, authMiddleware)
 	srv.StartAndServe()
+}
+
+func modelsCmd() {
+	fs := flag.NewFlagSet("models", flag.ExitOnError)
+	provider := fs.String("provider", "", "Filter by provider name")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Parse(os.Args[2:])
+
+	// Bootstrap
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	db, err := store.NewSQLiteStore(cfg.SQLitePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.Migrate(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	registry := inference.NewProviderRegistry()
+
+	// Register providers (same as server mode)
+	ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
+	if ollamaProvider.Probe(context.Background()) {
+		registry.Register(ollamaProvider)
+	}
+	if cfg.OpenAIKey != "" {
+		registry.Register(inference.NewOpenAIProvider("openai", cfg.OpenAIBaseURL, cfg.OpenAIKey))
+	}
+	if cfg.QwenKey != "" {
+		registry.Register(inference.NewOpenAIProvider("qwen", cfg.QwenBaseURL, cfg.QwenKey))
+	}
+	if cfg.LlamaKey != "" {
+		registry.Register(inference.NewOpenAIProvider("llama", cfg.LlamaBaseURL, cfg.LlamaKey))
+	}
+	if cfg.MinimaxKey != "" {
+		registry.Register(inference.NewOpenAIProvider("minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey))
+	}
+	if cfg.OSSKey != "" {
+		registry.Register(inference.NewOpenAIProvider("oss", cfg.OSSBaseURL, cfg.OSSKey))
+	}
+
+	if cfg.DefaultProvider != "" {
+		registry.SetDefault(cfg.DefaultProvider)
+	}
+
+	registry.RefreshModelMap(context.Background())
+
+	// Mock fallback
+	if len(registry.Providers()) == 0 {
+		registry.Register(inference.NewMockProvider("qwen", []string{"Hi"}))
+		registry.Register(inference.NewMockProvider("llama", []string{"Hi"}))
+		registry.SetDefault("qwen")
+	}
+
+	if err := cli.RunModels(context.Background(), registry, *provider, cfg.DefaultProvider, cfg.DefaultModel, *jsonOut, os.Stdout); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
