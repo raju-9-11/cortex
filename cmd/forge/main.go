@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"forge/internal/auth"
+	"forge/internal/cli"
 	"forge/internal/config"
 	"forge/internal/inference"
 	"forge/internal/server"
@@ -16,6 +18,39 @@ import (
 var version = "dev"
 
 func main() {
+	// Subcommand dispatch
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "help", "--help", "-h":
+			cli.PrintUsage(os.Stdout, version)
+			return
+		case "version", "--version":
+			cli.PrintVersion(os.Stdout, version)
+			return
+		case "run":
+			// TODO: WU-06 will implement this
+			fmt.Fprintln(os.Stderr, "Error: 'forge run' is not yet implemented")
+			os.Exit(1)
+		case "chat":
+			// TODO: WU-07 will implement this
+			fmt.Fprintln(os.Stderr, "Error: 'forge chat' is not yet implemented")
+			os.Exit(1)
+		case "sessions":
+			// TODO: WU-08 will implement this
+			fmt.Fprintln(os.Stderr, "Error: 'forge sessions' is not yet implemented")
+			os.Exit(1)
+		case "models":
+			// TODO: WU-10 will implement this
+			fmt.Fprintln(os.Stderr, "Error: 'forge models' is not yet implemented")
+			os.Exit(1)
+		default:
+			cli.PrintUnknownCommand(os.Stderr, os.Args[1])
+			os.Exit(1)
+		}
+	}
+
+	// No args → start HTTP server (existing behavior)
+
 	// 1. Load config
 	cfg, err := config.Load()
 	if err != nil {
