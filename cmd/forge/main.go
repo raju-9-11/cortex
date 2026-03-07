@@ -38,9 +38,8 @@ case "chat":
 chatCmd()
 return
 case "sessions":
-// TODO: WU-08 will implement this
-fmt.Fprintln(os.Stderr, "Error: 'forge sessions' is not yet implemented")
-os.Exit(1)
+sessionsCmd()
+return
 case "models":
 // TODO: WU-10 will implement this
 fmt.Fprintln(os.Stderr, "Error: 'forge models' is not yet implemented")
@@ -84,7 +83,6 @@ fs.Parse(os.Args[2:])
 // Determine prompt: flag > stdin pipe
 promptText := *prompt
 if promptText == "" {
-// Check if stdin is a pipe
 info, _ := os.Stdin.Stat()
 if (info.Mode() & os.ModeCharDevice) == 0 {
 data, err := io.ReadAll(io.LimitReader(os.Stdin, 100*1024))
@@ -103,7 +101,6 @@ fmt.Fprintln(os.Stderr, "       echo \"your question\" | forge run")
 os.Exit(1)
 }
 
-// Bootstrap (inline — same as server startup)
 cfg, err := config.Load()
 if err != nil {
 fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -124,7 +121,6 @@ os.Exit(1)
 
 registry := inference.NewProviderRegistry()
 
-// Register providers (same logic as server mode)
 ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
 if ollamaProvider.Probe(context.Background()) {
 registry.Register(ollamaProvider)
@@ -151,20 +147,17 @@ registry.SetDefault(cfg.DefaultProvider)
 
 registry.RefreshModelMap(context.Background())
 
-// Mock fallback
 if len(registry.Providers()) == 0 {
 registry.Register(inference.NewMockProvider("qwen", []string{"Hi", " I", " am", " Qwen", "!"}))
 registry.Register(inference.NewMockProvider("llama", []string{"Llama", " ", "here", "!"}))
 registry.SetDefault("qwen")
 }
 
-// Resolve model
 useModel := cfg.DefaultModel
 if *model != "" {
 useModel = *model
 }
 
-// Execute
 ctx := context.Background()
 _, err = cli.RunOnce(ctx, registry, useModel, *system, promptText, os.Stdout)
 if err != nil {
@@ -243,6 +236,45 @@ ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 defer cancel()
 
 if err := cli.RunREPL(ctx, registry, sessionMgr, useModel, *sessionID, *system, os.Stdin, os.Stdout); err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+}
+
+func sessionsCmd() {
+fs := flag.NewFlagSet("sessions", flag.ExitOnError)
+limit := fs.Int("limit", 0, "Limit number of results")
+jsonOut := fs.Bool("json", false, "Output as JSON")
+fs.Parse(os.Args[2:])
+
+args := fs.Args()
+action := ""
+targetID := ""
+if len(args) > 0 {
+action = args[0]
+}
+if len(args) > 1 {
+targetID = args[1]
+}
+
+cfg, err := config.Load()
+if err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+db, err := store.NewSQLiteStore(cfg.SQLitePath)
+if err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+defer db.Close()
+if err := db.Migrate(context.Background()); err != nil {
+fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+os.Exit(1)
+}
+sessionMgr := session.NewManager(db, cfg.DefaultModel)
+
+if err := cli.RunSessions(context.Background(), sessionMgr, action, targetID, *limit, *jsonOut, os.Stdout); err != nil {
 fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 os.Exit(1)
 }
