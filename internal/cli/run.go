@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"io"
 
-	"forge/internal/inference"
 	"forge/pkg/types"
 )
 
 // RunOnce executes a single prompt against the resolved provider and streams
 // the response to w with ANSI formatting via RenderStream.
 // Returns the complete response text (unformatted).
-func RunOnce(ctx context.Context, registry *inference.ProviderRegistry,
+func RunOnce(ctx context.Context, registry ModelResolver,
 	model string, systemPrompt string, prompt string, w io.Writer) (string, error) {
 
 	provider, resolvedModel, err := registry.Resolve(model)

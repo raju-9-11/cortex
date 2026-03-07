@@ -7,12 +7,10 @@ import (
 	"io"
 	"sort"
 	"text/tabwriter"
-
-	"forge/internal/inference"
 )
 
 // RunModels lists all available models from the registry.
-func RunModels(ctx context.Context, registry *inference.ProviderRegistry,
+func RunModels(ctx context.Context, registry ModelResolver,
 	filterProvider string, defaultProvider string, defaultModel string,
 	jsonOutput bool, w io.Writer) error {
 
