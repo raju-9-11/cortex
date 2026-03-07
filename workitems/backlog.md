@@ -175,11 +175,313 @@
 
 ---
 
+---
+
+## 🎙️ Voice & Video Features
+
+> **Source:** Consolidated from Product Manager, Architect, and Design agent specs.
+> **Phased approach:** Foundation → Analysis → Generation → Real-time.
+
+### Phase V1 — Voice Foundation + Vision (Image)
+
+#### VV-001: Media storage layer (`internal/media/`)
+- **Priority:** High — prerequisite for all voice/video features
+- **Scope:** New `internal/media/` package with `MediaStore` interface
+- **Components:**
+  - File storage on local filesystem (`./data/media/`)
+  - SQLite metadata table: `media_attachments` (id `med_<uuid>`, type, mime_type, size_bytes, path, checksum, created_at)
+  - `Upload(ctx, io.Reader, metadata) → MediaRecord` — streams to disk, records metadata
+  - `Get(ctx, id) → MediaRecord` — metadata lookup
+  - `Open(ctx, id) → io.ReadCloser` — file content
+  - `Delete(ctx, id)` — remove file + metadata
+  - `LinkToMessage(ctx, mediaID, messageID)` — association table
+- **Config:** `FORGE_MEDIA_DIR` (default `./data/media/`), `FORGE_MAX_UPLOAD_BYTES` (default 50MB)
+- **Acceptance:** Upload a file via API, retrieve it, delete it. Files survive server restart.
+
+#### VV-002: Media upload/serve API endpoints
+- **Priority:** High — prerequisite for attachments
+- **Files:** New `internal/api/handlers_media.go`
+- **Endpoints:**
+  - `POST /api/media/upload` — multipart file upload → `{id, type, mime_type, size, url}`
+  - `GET /api/media/{id}` — serve file with correct Content-Type, support Range requests for video
+  - `DELETE /api/media/{id}` — remove media
+- **Validation:** Max file size (50MB), allowed MIME types (image/jpeg, image/png, image/webp, audio/mp3, audio/wav, audio/webm, video/mp4, video/webm)
+- **Error codes:** `file_too_large`, `unsupported_format`
+- **Acceptance:** Upload image/audio/video via curl, retrieve by ID, delete.
+
+#### VV-003: Extend message model with attachments
+- **Priority:** High — enables multimodal messages
+- **Files:** `pkg/types/message.go`, `internal/api/handlers_sessions.go`, `internal/store/store.go`, `internal/store/sqlite.go`
+- **Changes:**
+  - Add `Attachments []MessageAttachment` to `SendMessageRequest` (input: `media_id` only)
+  - Add `Attachments []MessageAttachment` to message responses (output: full metadata + url)
+  - `MessageAttachment` struct: `{media_id, type, mime_type, url, description}`
+  - New join table `message_attachments` (message_id, media_id, position)
+  - `description` field serves as alt-text for accessibility
+- **Backward compatible:** Existing clients that don't send attachments are unaffected.
+- **Acceptance:** Create message with attachment, retrieve session shows attachment metadata.
+
+#### VV-004: Speech-to-text endpoint (OpenAI Whisper)
+- **Priority:** High — core voice input
+- **Files:** New `internal/voice/provider.go`, `internal/voice/openai_stt.go`, new `internal/api/handlers_voice.go`
+- **Interface:**
+  ```go
+  type STTProvider interface {
+      Transcribe(ctx context.Context, audio io.Reader, opts STTOptions) (*Transcription, error)
+      SupportedFormats() []string
+  }
+  ```
+- **Endpoint:** `POST /api/voice/transcribe` — multipart (file + model + language?) → `{text, language, duration, segments[]}`
+- **Also:** `POST /v1/audio/transcriptions` (OpenAI-compatible alias)
+- **Provider:** OpenAI Whisper API (uses existing `OPENAI_API_KEY`)
+- **Limits:** Max 25MB audio, formats: mp3, wav, m4a, webm, ogg
+- **Acceptance:** Upload audio file, receive accurate transcription within 10 seconds.
+
+#### VV-005: Text-to-speech endpoint (OpenAI TTS)
+- **Priority:** High — core voice output
+- **Files:** New `internal/voice/openai_tts.go`, extend `internal/api/handlers_voice.go`
+- **Interface:**
+  ```go
+  type TTSProvider interface {
+      Synthesize(ctx context.Context, text string, opts TTSOptions) (io.ReadCloser, error)
+      AvailableVoices() []Voice
+  }
+  ```
+- **Endpoint:** `POST /api/voice/synthesize` — JSON `{text, voice, speed, format}` → binary audio stream (Content-Type: audio/mpeg)
+- **Also:** `POST /v1/audio/speech` (OpenAI-compatible alias)
+- **Provider:** OpenAI TTS API (voices: alloy, nova, echo, fable, onyx, shimmer)
+- **Limits:** Max 4096 chars input. Formats: mp3, wav, opus
+- **Response:** Chunked transfer encoding for streaming playback. `X-Audio-Duration` header.
+- **Acceptance:** Send text, receive playable MP3 audio stream.
+
+#### VV-006: Vision support in chat completions
+- **Priority:** High — image analysis
+- **Files:** `pkg/types/`, `internal/inference/openai.go`, `internal/inference/ollama.go`, `internal/inference/registry.go`
+- **Changes:**
+  - Extend `ChatCompletionRequest.Messages[].Content` to accept `string | []ContentPart`
+  - `ContentPart` struct: `{type: "text"|"image_url", text?, image_url?: {url, detail?}}`
+  - OpenAI provider: pass content parts as-is (native format)
+  - Ollama provider: translate to `images` field (extract base64 from data URIs)
+  - Registry: add `SupportsVision() bool` capability flag to providers
+  - Route multimodal requests only to vision-capable models; return 400 otherwise
+- **Supported models:** GPT-4o, GPT-4V (OpenAI), LLaVA, llama3.2-vision (Ollama)
+- **Acceptance:** Send image + question to GPT-4o, get description back. Same with LLaVA via Ollama.
+
+#### VV-007: Schema migration 002_media.sql
+- **Priority:** High — prerequisite for VV-001 through VV-003
+- **Files:** `internal/store/migrations/002_media.sql`
+- **Tables:**
+  ```sql
+  CREATE TABLE media (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL CHECK(type IN ('image','audio','video')),
+      mime_type TEXT NOT NULL,
+      filename TEXT,
+      size_bytes INTEGER NOT NULL,
+      path TEXT NOT NULL,
+      checksum TEXT,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now'))
+  );
+
+  CREATE TABLE message_media (
+      message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (message_id, media_id)
+  );
+
+  CREATE TABLE generation_jobs (
+      id TEXT PRIMARY KEY,
+      session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK(type IN ('video','image')),
+      provider TEXT NOT NULL,
+      model TEXT,
+      prompt TEXT NOT NULL,
+      config_json TEXT,
+      status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','processing','completed','failed','cancelled')),
+      progress REAL DEFAULT 0.0,
+      result_media_id TEXT REFERENCES media(id),
+      error TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now')),
+      completed_at TEXT
+  );
+
+  CREATE INDEX idx_media_type ON media(type);
+  CREATE INDEX idx_message_media_message ON message_media(message_id);
+  CREATE INDEX idx_generation_jobs_status ON generation_jobs(status);
+  CREATE INDEX idx_generation_jobs_session ON generation_jobs(session_id);
+  ```
+- **Acceptance:** Migration runs cleanly on existing databases. No data loss.
+
+### Phase V2 — Video Analysis + Provider Expansion
+
+#### VV-008: Video frame extraction
+- **Priority:** Medium
+- **Files:** New `internal/video/frames.go`
+- **Scope:**
+  - `FrameExtractor` struct that shells out to `ffmpeg` (checked via `exec.LookPath`)
+  - `HasFFmpeg() bool` — graceful degradation (if absent, only image uploads accepted)
+  - `ExtractFrames(videoPath, opts) → []Frame` — uniform sampling (1/sec) or scene-change detection
+  - Frames resized to max 1024px on longest edge, output as JPEG
+  - EXIF data stripped for privacy
+- **Config:** `FORGE_FFMPEG_PATH` (default: auto-detect)
+- **Limits:** Max 60 seconds video, max 50MB, max 30 frames per extraction
+- **Acceptance:** Upload 30-second MP4, get 10 keyframes as base64 JPEG.
+
+#### VV-009: Video analysis API endpoint
+- **Priority:** Medium — depends on VV-006 (vision) + VV-008 (frames)
+- **Files:** Extend `internal/api/handlers_media.go`
+- **Endpoint:** `POST /api/video/analyze` — multipart (video file + prompt + max_frames?) → extracted frames sent to vision model → text response
+- **Also:** Convenience endpoint that combines frame extraction + vision chat in one call
+- **Alternative flow:** `POST /v1/video/extract-frames` returns frames, client includes in `/v1/chat/completions`
+- **Token cost:** Log estimated token cost (OpenAI: ~85 tokens per 512×512 tile). Display in response metadata.
+- **Acceptance:** Upload a video, ask "what happens in this video?", get accurate description.
+
+#### VV-010: Deepgram STT provider
+- **Priority:** Medium
+- **Files:** New `internal/voice/deepgram.go`
+- **Scope:** Implement `STTProvider` for Deepgram API. REST-based transcription.
+- **Config:** `DEEPGRAM_API_KEY`
+- **Why:** Superior accuracy for noisy audio. Lower cost at scale. Needed for real-time STT (Phase V3).
+- **Acceptance:** Transcribe same audio file via Deepgram and OpenAI, both return results.
+
+#### VV-011: ElevenLabs TTS provider
+- **Priority:** Medium
+- **Files:** New `internal/voice/elevenlabs.go`
+- **Scope:** Implement `TTSProvider` for ElevenLabs API. Streaming audio output.
+- **Config:** `ELEVENLABS_API_KEY`
+- **Why:** Premium voice quality, voice cloning capability. Differentiated from OpenAI TTS.
+- **Acceptance:** Synthesize text with ElevenLabs voice, verify higher quality audio.
+
+#### VV-012: Anthropic Claude Vision provider
+- **Priority:** Medium — depends on VV-006
+- **Files:** New `internal/inference/anthropic.go`
+- **Scope:** Full Anthropic provider (chat + vision). Different API format: `source` blocks with `media_type` + `data`, system prompt as top-level field, `content_block_delta` streaming.
+- **Config:** `ANTHROPIC_API_KEY` (already in config, unused)
+- **Acceptance:** Send image to Claude, get analysis. Text chat also works.
+
+#### VV-013: Google Gemini Vision provider
+- **Priority:** Medium
+- **Files:** New `internal/inference/gemini.go`
+- **Scope:** Gemini provider (chat + native video understanding). `inlineData` format with `mimeType` + `data`. Native video analysis (no frame extraction needed).
+- **Config:** `GEMINI_API_KEY`
+- **Acceptance:** Send video directly to Gemini (no frame extraction), get analysis.
+
+### Phase V3 — Video Generation
+
+#### VV-014: Video generation job queue
+- **Priority:** Medium — infrastructure for async gen
+- **Files:** New `internal/video/generator.go`, `internal/video/poller.go`
+- **Interface:**
+  ```go
+  type VideoGenerator interface {
+      Submit(ctx context.Context, req VideoGenRequest) (jobID string, err error)
+      Poll(ctx context.Context, jobID string) (*VideoGenStatus, error)
+      Cancel(ctx context.Context, jobID string) error
+      Download(ctx context.Context, jobID string) (io.ReadCloser, error)
+  }
+  ```
+- **Background poller:** Single goroutine polls `generation_jobs` table every 5 seconds. Picks oldest `queued` → sets `processing` → calls provider → polls for completion → downloads result → saves to media store → sets `completed`.
+- **Concurrency:** 1 active job at a time (configurable). Queue the rest.
+- **Crash recovery:** On startup, resume polling for any `processing` jobs.
+- **Acceptance:** Submit job, restart server, job still completes.
+
+#### VV-015: Video generation API endpoints
+- **Priority:** Medium — depends on VV-014
+- **Files:** New `internal/api/handlers_video.go`
+- **Endpoints:**
+  - `POST /api/video/generate` — `{prompt, model, duration, resolution, reference_image?}` → 202 `{job_id, status, poll_url}`
+  - `GET /api/video/jobs/{id}` — `{job_id, status, progress, video_url?, error?}`
+  - `GET /api/video/jobs` — list jobs, filter by `?status=` and `?session_id=`
+  - `DELETE /api/video/jobs/{id}` — cancel/delete
+- **Error codes:** `generation_failed`, `quota_exceeded`, `content_policy_violation`
+- **Acceptance:** Submit generation request, poll until complete, download video.
+
+#### VV-016: OpenAI Sora video generation provider
+- **Priority:** Medium — depends on VV-014
+- **Files:** New `internal/video/sora.go`
+- **Scope:** Implement `VideoGenerator` for OpenAI Sora API (or whatever the API surface is at implementation time).
+- **Config:** Uses existing `OPENAI_API_KEY`
+- **Note:** Video generation APIs are nascent and may change. Provider abstraction is critical.
+- **Acceptance:** Generate a 5-second video from text prompt via Sora.
+
+### Phase V4 — Real-time Voice
+
+#### VV-017: WebSocket real-time voice streaming
+- **Priority:** Low — requires Deepgram (VV-010) + solid STT/TTS foundation
+- **Files:** New `internal/api/handlers_voice_ws.go`
+- **Endpoint:** `WS /api/voice/stream?session_id=X`
+- **Protocol:**
+  - Client sends: binary audio frames (opus/webm chunks)
+  - Server sends: JSON text frames (`{type: "transcription", text, is_final}`) + binary audio frames (TTS response)
+  - Turn detection: VAD (voice activity detection) via energy threshold or provider-side
+  - Interruption handling: client starts speaking → server stops TTS playback
+- **Idle timeout:** 5 minutes no audio → close connection
+- **Acceptance:** Open WebSocket, speak, receive live transcription + spoken AI response.
+
+#### VV-018: Session-level voice settings
+- **Priority:** Low — depends on VV-004 + VV-005
+- **Files:** `pkg/types/session.go`, `internal/session/manager.go`
+- **Changes:**
+  - Add `VoiceSettings` to session: `{stt_enabled, tts_enabled, tts_voice, tts_speed, language}`
+  - `PATCH /api/sessions/{id}` accepts `voice` field
+  - When `tts_enabled`, chat responses automatically include synthesized audio URL
+- **Acceptance:** Enable TTS on a session, send text message, response includes audio URL.
+
+---
+
+## 🔧 Voice & Video — Config Additions
+
+| Variable | Default | Phase | Description |
+|----------|---------|-------|-------------|
+| `FORGE_MEDIA_DIR` | `./data/media/` | V1 | Media file storage directory |
+| `FORGE_MAX_UPLOAD_BYTES` | `52428800` (50MB) | V1 | Max upload file size |
+| `ELEVENLABS_API_KEY` | *(empty)* | V2 | ElevenLabs TTS API key |
+| `DEEPGRAM_API_KEY` | *(empty)* | V2 | Deepgram STT API key |
+| `GEMINI_API_KEY` | *(empty)* | V2 | Google Gemini API key |
+| `FORGE_FFMPEG_PATH` | *(auto-detect)* | V2 | Path to ffmpeg binary |
+| `FORGE_MAX_VIDEO_DURATION` | `60` | V2 | Max video duration (seconds) |
+| `FORGE_MAX_FRAMES` | `30` | V2 | Max frames per video extraction |
+| `FORGE_VIDEO_GEN_CONCURRENCY` | `1` | V3 | Max concurrent video generation jobs |
+
+---
+
+## 🏗️ Voice & Video — Dependency Graph
+
+```
+Phase V1 (parallel tracks):
+  VV-007 (schema) ──┬──► VV-001 (media store) ──► VV-002 (media API) ──► VV-003 (attachments)
+                    │
+                    └──► VV-004 (STT) ─────────────────────────────────┐
+                    └──► VV-005 (TTS) ─────────────────────────────────┤
+                    └──► VV-006 (vision in chat) ──────────────────────┤
+                                                                       ▼
+Phase V2 (depends on V1):                                       V1 complete
+  VV-008 (frame extraction) ──► VV-009 (video analysis)
+  VV-010 (Deepgram) ─── parallel ─── VV-011 (ElevenLabs)
+  VV-012 (Anthropic) ─── parallel ── VV-013 (Gemini)
+
+Phase V3 (depends on V1 media):
+  VV-014 (job queue) ──► VV-015 (gen API) ──► VV-016 (Sora provider)
+
+Phase V4 (depends on V2):
+  VV-010 (Deepgram) ──► VV-017 (WebSocket voice)
+  VV-004 + VV-005 ────► VV-018 (session voice settings)
+```
+
+**Critical path:** VV-007 → VV-001 → VV-006 → VV-008 → VV-009 (video analysis end-to-end)
+**Voice is fully parallel** — can be developed concurrently with video.
+
+---
+
 ## Summary
 
 | Category | Count | Sprint |
 |----------|-------|--------|
 | 🟡 Medium (code quality) | 13 | Sprint 2 |
 | 🟢 Low (polish) | 7 | Sprint 3+ |
-| 📦 Features | 12 | Phase B+ |
-| **Total** | **32** | |
+| 📦 Features (existing) | 12 | Phase B+ |
+| 🎙️ Voice & Video | 18 | Phases V1–V4 |
+| **Total** | **50** | |
