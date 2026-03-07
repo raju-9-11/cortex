@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"forge/internal/inference"
 	"forge/internal/session"
@@ -306,6 +307,10 @@ func (h *SessionHandler) handleStreamingMessage(
 	}
 
 	// Save the accumulated assistant message.
+	// IMPORTANT: Use a background context, not r.Context(). The HTTP request
+	// context is cancelled when the client disconnects, which may happen before
+	// or immediately after the stream completes. We must still persist the
+	// assistant response to avoid data loss.
 	content := accumulator.Content()
 	if content != "" {
 		assistantMsg := &store.Message{
@@ -313,7 +318,9 @@ func (h *SessionHandler) handleStreamingMessage(
 			Content: content,
 			Model:   sess.Model,
 		}
-		if err := h.manager.AddMessage(r.Context(), sessionID, assistantMsg); err != nil {
+		saveCtx, saveCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer saveCancel()
+		if err := h.manager.AddMessage(saveCtx, sessionID, assistantMsg); err != nil {
 			log.Printf("[ERROR] failed to save streamed assistant message session=%s: %v",
 				sessionID, err)
 		}

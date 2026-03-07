@@ -55,7 +55,7 @@ func TestSessionCRUD(t *testing.T) {
 		ID:           "ses_test1",
 		UserID:       "default",
 		Title:        "Test Chat",
-		Model:        "llama3.2:1b",
+		Model:        "qwen2.5:0.5b",
 		SystemPrompt: "You are helpful.",
 		Status:       "active",
 		TokenCount:   0,
@@ -78,8 +78,8 @@ func TestSessionCRUD(t *testing.T) {
 	if got.Title != "Test Chat" {
 		t.Errorf("expected title 'Test Chat', got '%s'", got.Title)
 	}
-	if got.Model != "llama3.2:1b" {
-		t.Errorf("expected model 'llama3.2:1b', got '%s'", got.Model)
+	if got.Model != "qwen2.5:0.5b" {
+		t.Errorf("expected model 'qwen2.5:0.5b', got '%s'", got.Model)
 	}
 
 	// Get not found

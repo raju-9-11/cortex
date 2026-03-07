@@ -34,7 +34,7 @@ func setupTestManager(t *testing.T) *SessionManagerImpl {
 
 	t.Cleanup(func() { s.Close() })
 
-	return NewManager(s, "llama3.2:1b")
+	return NewManager(s, "qwen2.5:0.5b")
 }
 
 func TestCreateWithDefaults(t *testing.T) {
@@ -58,8 +58,8 @@ func TestCreateWithDefaults(t *testing.T) {
 	if sess.Title != "New Chat" {
 		t.Errorf("expected default title 'New Chat', got %q", sess.Title)
 	}
-	if sess.Model != "llama3.2:1b" {
-		t.Errorf("expected default model 'llama3.2:1b', got %q", sess.Model)
+	if sess.Model != "qwen2.5:0.5b" {
+		t.Errorf("expected default model 'qwen2.5:0.5b', got %q", sess.Model)
 	}
 	if sess.UserID != "default" {
 		t.Errorf("expected default userID 'default', got %q", sess.UserID)
@@ -339,7 +339,7 @@ func TestAddMessageAndGetMessages(t *testing.T) {
 	assistantMsg := &store.Message{
 		Role:    "assistant",
 		Content: "Hello! How can I help?",
-		Model:   "llama3.2:1b",
+		Model:   "qwen2.5:0.5b",
 	}
 	if err := mgr.AddMessage(ctx, sess.ID, assistantMsg); err != nil {
 		t.Fatalf("AddMessage (assistant): %v", err)

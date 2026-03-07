@@ -96,6 +96,7 @@ func main() {
 	fmt.Printf("\n🔥 Forge %s\n", cfg.Version)
 	fmt.Printf("  API:    http://localhost%s/v1/chat/completions\n", cfg.Addr)
 	fmt.Printf("  Health: http://localhost%s/api/health\n", cfg.Addr)
+	fmt.Printf("  Chat UI: http://localhost%s/chat\n", cfg.Addr)
 	fmt.Println()
 	fmt.Printf("  Providers: %d registered\n", len(registry.Providers()))
 	fmt.Printf("  Models:    %d available\n", len(models))

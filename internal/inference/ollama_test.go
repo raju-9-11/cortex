@@ -43,7 +43,7 @@ func TestOllamaProvider_Name(t *testing.T) {
 
 func TestOllamaProvider_Capabilities(t *testing.T) {
 	p := NewOllamaProvider("")
-	caps := p.Capabilities("llama3.2:1b")
+	caps := p.Capabilities("qwen2.5:0.5b")
 	if caps.MaxContextTokens != 4096 {
 		t.Errorf("expected MaxContextTokens 4096, got %d", caps.MaxContextTokens)
 	}
@@ -101,7 +101,7 @@ func TestOllamaProvider_ListModels_Success(t *testing.T) {
 		}
 		resp := ollamaTagsResponse{
 			Models: []ollamaModelEntry{
-				{Name: "llama3:latest"},
+				{Name: "qwen2.5:0.5b:latest"},
 				{Name: "mistral:7b"},
 			},
 		}
@@ -118,8 +118,8 @@ func TestOllamaProvider_ListModels_Success(t *testing.T) {
 	if len(models) != 2 {
 		t.Fatalf("expected 2 models, got %d", len(models))
 	}
-	if models[0].ID != "llama3:latest" {
-		t.Errorf("expected first model 'llama3:latest', got %s", models[0].ID)
+	if models[0].ID != "qwen2.5:0.5b:latest" {
+		t.Errorf("expected first model 'qwen2.5:0.5b:latest', got %s", models[0].ID)
 	}
 	if models[0].Provider != "ollama" {
 		t.Errorf("expected provider 'ollama', got %s", models[0].Provider)
@@ -162,12 +162,12 @@ func TestOllamaProvider_Complete(t *testing.T) {
 		if req.Stream {
 			t.Error("expected stream=false for Complete")
 		}
-		if req.Model != "llama3.2:1b" {
-			t.Errorf("expected model 'llama3.2:1b', got %s", req.Model)
+		if req.Model != "qwen2.5:0.5b" {
+			t.Errorf("expected model 'qwen2.5:0.5b', got %s", req.Model)
 		}
 
 		resp := ollamaChatResponse{
-			Model: "llama3.2:1b",
+			Model: "qwen2.5:0.5b",
 			Message: ollamaMessage{
 				Role:    "assistant",
 				Content: "Hello! How can I help?",
@@ -185,7 +185,7 @@ func TestOllamaProvider_Complete(t *testing.T) {
 	p := NewOllamaProvider(srv.URL)
 	temp := 0.7
 	resp, err := p.Complete(context.Background(), &types.ChatCompletionRequest{
-		Model: "llama3.2:1b",
+		Model: "qwen2.5:0.5b",
 		Messages: []types.ChatMessage{
 			{Role: "user", Content: "Hello"},
 		},
@@ -194,8 +194,8 @@ func TestOllamaProvider_Complete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Model != "llama3.2:1b" {
-		t.Errorf("expected model 'llama3.2:1b', got %s", resp.Model)
+	if resp.Model != "qwen2.5:0.5b" {
+		t.Errorf("expected model 'qwen2.5:0.5b', got %s", resp.Model)
 	}
 	if len(resp.Choices) != 1 {
 		t.Fatalf("expected 1 choice, got %d", len(resp.Choices))
@@ -261,10 +261,10 @@ func TestOllamaProvider_StreamChat(t *testing.T) {
 		flusher, _ := w.(http.Flusher)
 
 		chunks := []ollamaChatResponse{
-			{Model: "llama3", Message: ollamaMessage{Role: "assistant", Content: "Hello"}, Done: false},
-			{Model: "llama3", Message: ollamaMessage{Role: "assistant", Content: " world"}, Done: false},
-			{Model: "llama3", Message: ollamaMessage{Role: "assistant", Content: "!"}, Done: false},
-			{Model: "llama3", Done: true, DoneReason: "stop", PromptEvalCount: 5, EvalCount: 3},
+			{Model: "qwen2.5:0.5b", Message: ollamaMessage{Role: "assistant", Content: "Hello"}, Done: false},
+			{Model: "qwen2.5:0.5b", Message: ollamaMessage{Role: "assistant", Content: " world"}, Done: false},
+			{Model: "qwen2.5:0.5b", Message: ollamaMessage{Role: "assistant", Content: "!"}, Done: false},
+			{Model: "qwen2.5:0.5b", Done: true, DoneReason: "stop", PromptEvalCount: 5, EvalCount: 3},
 		}
 
 		for _, chunk := range chunks {
@@ -281,7 +281,7 @@ func TestOllamaProvider_StreamChat(t *testing.T) {
 	out := make(chan types.StreamEvent, 10)
 
 	err := p.StreamChat(context.Background(), &types.ChatCompletionRequest{
-		Model:    "llama3",
+		Model:    "qwen2.5:0.5b",
 		Messages: []types.ChatMessage{{Role: "user", Content: "Hi"}},
 	}, out)
 	if err != nil {
@@ -337,7 +337,7 @@ func TestOllamaProvider_StreamChat_HTTPError(t *testing.T) {
 	out := make(chan types.StreamEvent, 10)
 
 	err := p.StreamChat(context.Background(), &types.ChatCompletionRequest{
-		Model:    "llama3",
+		Model:    "qwen2.5:0.5b",
 		Messages: []types.ChatMessage{{Role: "user", Content: "Hi"}},
 	}, out)
 	if err == nil {
@@ -364,7 +364,7 @@ func TestOllamaProvider_StreamChat_ContextCancelled(t *testing.T) {
 		// Send one chunk, then hang (context will be cancelled).
 		w.Header().Set("Content-Type", "application/x-ndjson")
 		chunk := ollamaChatResponse{
-			Model:   "llama3",
+			Model:   "qwen2.5:0.5b",
 			Message: ollamaMessage{Role: "assistant", Content: "Hi"},
 			Done:    false,
 		}
@@ -385,7 +385,7 @@ func TestOllamaProvider_StreamChat_ContextCancelled(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- p.StreamChat(ctx, &types.ChatCompletionRequest{
-			Model:    "llama3",
+			Model:    "qwen2.5:0.5b",
 			Messages: []types.ChatMessage{{Role: "user", Content: "Hi"}},
 		}, out)
 	}()

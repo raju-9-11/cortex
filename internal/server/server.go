@@ -15,6 +15,7 @@ import (
 	"forge/internal/inference"
 	"forge/internal/session"
 	"forge/internal/store"
+	"forge/internal/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -55,6 +56,11 @@ func New(cfg *config.Config, registry *inference.ProviderRegistry, st store.Stor
 		sessionHandler := api.NewSessionHandler(sessionMgr, registry)
 		sessionHandler.RegisterRoutes(r)
 	})
+
+	// Web UI — public, mounted at /chat, served last so API routes take precedence.
+	// http.StripPrefix removes "/chat" so the embed handler sees clean paths
+	// (e.g. "/css/styles.css" instead of "/chat/css/styles.css").
+	r.Mount("/chat", http.StripPrefix("/chat", web.Handler()))
 
 	return &Server{
 		cfg:        cfg,

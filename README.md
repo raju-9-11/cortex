@@ -82,7 +82,7 @@ Forge auto-detects Ollama at `http://localhost:11434` on startup. If no provider
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.2:1b",
+    "model": "qwen2.5:0.5b",
     "messages": [{"role": "user", "content": "Hello!"}],
     "stream": true
   }'
@@ -95,7 +95,7 @@ curl -X POST http://localhost:8080/api/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "title": "My Chat",
-    "model": "llama3.2:1b",
+    "model": "qwen2.5:0.5b",
     "system_prompt": "You are a helpful assistant."
   }'
 ```
@@ -140,8 +140,8 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_PROVIDER` | `ollama` | Default provider name |
-| `FORGE_MODEL` | `llama3.2:1b` | Default model |
+| `FORGE_PROVIDER` | `qwen` | Default provider name |
+| `FORGE_MODEL` | `qwen2.5:0.5b` | Default model |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
 | `OPENAI_API_KEY` | *(empty)* | OpenAI API key |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI base URL |

@@ -9,6 +9,8 @@ import (
 
 	"forge/internal/inference"
 	"forge/pkg/types"
+
+	"github.com/google/uuid"
 )
 
 type Pipeline struct {
@@ -29,6 +31,12 @@ func (p *Pipeline) Stream(ctx context.Context, req *types.ChatCompletionRequest,
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Generate a stable chunk ID and timestamp for all chunks in this stream.
+	// OpenAI-compatible clients expect a non-empty "id" and non-zero "created"
+	// on every ChatCompletionChunk.
+	chunkID := "chatcmpl-" + uuid.NewString()[:8]
+	created := time.Now().Unix()
 
 	// Stream-level timeout: 5 minutes max for the entire completion.
 	const (
@@ -72,7 +80,7 @@ func (p *Pipeline) Stream(ctx context.Context, req *types.ChatCompletionRequest,
 				goto done
 			}
 
-			if err := writeSSEEvent(w, event, req.Model); err != nil {
+			if err := writeSSEEvent(w, event, req.Model, chunkID, created); err != nil {
 				cancel()
 				return fmt.Errorf("write SSE event: %w", err)
 			}
@@ -105,10 +113,12 @@ done:
 	}
 }
 
-func writeSSEEvent(w http.ResponseWriter, event types.StreamEvent, model string) error {
+func writeSSEEvent(w http.ResponseWriter, event types.StreamEvent, model string, chunkID string, created int64) error {
 	chunk := types.ChatCompletionChunk{
-		Object: "chat.completion.chunk",
-		Model:  model,
+		ID:      chunkID,
+		Object:  "chat.completion.chunk",
+		Model:   model,
+		Created: created,
 	}
 
 	switch event.Type {

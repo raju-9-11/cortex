@@ -86,7 +86,7 @@ func (r *ProviderRegistry) RefreshModelMap(ctx context.Context) error {
 // Resolve determines which provider should handle a given model string.
 //
 // Resolution order:
-//  1. "provider/model" prefix syntax — e.g. "ollama/llama3.2:1b".
+//  1. "provider/model" prefix syntax — e.g. "ollama/qwen2.5:0.5b".
 //  2. Exact match in the model map (populated by RefreshModelMap).
 //  3. Default provider (model name passed through unchanged).
 //  4. Error if nothing matches.

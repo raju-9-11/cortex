@@ -175,8 +175,6 @@
 
 ---
 
----
-
 ## 🎙️ Voice & Video Features
 
 > **Source:** Consolidated from Product Manager, Architect, and Design agent specs.
@@ -476,12 +474,64 @@ Phase V4 (depends on V2):
 
 ---
 
-## Summary
+## 📋 Unresolved Review Feedback
 
-| Category | Count | Sprint |
-|----------|-------|--------|
-| 🟡 Medium (code quality) | 13 | Sprint 2 |
-| 🟢 Low (polish) | 7 | Sprint 3+ |
-| 📦 Features (existing) | 12 | Phase B+ |
-| 🎙️ Voice & Video | 18 | Phases V1–V4 |
-| **Total** | **50** | |
+### Architecture & Backend (Source: Architecture Review, Developer Review)
+- **WI-300: Relocate `accumulatingProvider`**
+  - **Location:** `internal/api/handlers_sessions.go` → `internal/streaming/`
+  - **Problem:** Logic lives in the wrong package.
+- **WI-301: Clean up unused config fields**
+  - **Fields:** `AnthropicKey`, `DatabaseURL`, `LogLevel`, `LogFormat`, etc.
+  - **Action:** Either implement or remove with a TODO/comment.
+- **WI-302: Gate mock providers on `DevMode`**
+  - **Location:** `cmd/forge/main.go`
+  - **Problem:** Mocks used as production fallback.
+- **WI-303: Standardize non-streaming response check**
+  - **Problem:** `json.Encode()` errors are unchecked in multiple handlers.
+- **WI-304: Dynamic Provider Configuration**
+  - **Problem:** Provider config is hardcoded; should be dynamic (e.g., via env list).
+- **WI-305: Implement separate read/write DB connections**
+  - **Goal:** Optimize SQLite concurrency in WAL mode.
+
+### LLM Engine & Inference (Source: LLM Engine Review)
+- **WI-306: Fix SSE `[DONE]` logic**
+  - **Problem:** `[DONE]` sent even after error events.
+- **WI-307: Model-specific capabilities registry**
+  - **Problem:** `Capabilities()` returns hardcoded defaults (e.g., 8k context for GPT-4o).
+- **WI-308: OpenAI Tool Call Delta Accumulation**
+  - **Problem:** Missing tracking by index; deltas lose their ID correlation.
+- **WI-309: Unify token counting logic**
+  - **Problem:** Divergent implementations in OpenAI and Ollama providers.
+- **WI-310: Add read timeouts to streaming bodies**
+  - **Problem:** Risk of goroutine leaks if upstream hangs mid-stream.
+
+### API Design & DX (Source: API Design Review)
+- **WI-311: Consistent Forge-native API Envelopes**
+  - **Problem:** `POST /api/sessions` and `PATCH` return bare objects; others are wrapped.
+- **WI-312: Use human-readable SSE error messages**
+  - **Problem:** Raw Go errors (e.g., "context deadline exceeded") leaked to client.
+- **WI-313: Add `Location` header to 201 responses**
+- **WI-314: Session ID Prefix Consistency**
+  - **Problem:** Spec says `ses_`, code uses `sess_`.
+
+### Product & UI/UX Features (Source: Product Review, Design Review)
+- **FB-100: Conversation List UI**
+  - [ ] Left sidebar with last-modified sorting
+  - [ ] Auto-titling via LLM summarization
+  - [ ] Search bar for conversations
+- **FB-101: Message Actions UI**
+  - [ ] Message editing and resubmission
+  - [ ] Response regeneration with carousel (← 1/2 →)
+  - [ ] Stop generation button
+- **FB-102: Enhanced Message Rendering**
+  - [ ] Flat message layout (no bubbles)
+  - [ ] Shiki-powered syntax highlighting
+  - [ ] LaTeX/math notation (KaTeX)
+- **FB-103: Settings & Onboarding**
+  - [ ] Settings page at `/settings` for providers and API keys
+  - [ ] Welcoming first-run onboarding wizard
+  - [ ] Test Connection button for providers
+- **FB-104: Accessibility & Polish**
+  - [ ] Debounced `aria-live` region for streaming text
+  - [ ] Global keyboard shortcut layer
+  - [ ] Dark/Light theme toggle with no FOUC

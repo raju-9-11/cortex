@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Forge — Unified AI Chat Interface">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Forge Chat</title>
+
+  <!-- Syntax highlighting theme -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css"
+  >
+
+  <!-- Application styles -->
+  <link rel="stylesheet" href="/chat/css/styles.css">
+
+  <!-- Markdown parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <!-- Syntax highlighter -->
+  <script
+    src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"
+    defer
+  ></script>
+</head>
+<body>
+  <!-- Skip-to-content link for keyboard / screen-reader users -->
+  <a href="#message-input" class="skip-link">Skip to chat input</a>
+
+  <div id="app">
+    <!-- ─── Sidebar ─────────────────────────────────────────── -->
+    <aside id="sidebar" aria-label="Chat sessions">
+      <div id="sidebar-header">
+        <h1><span aria-hidden="true">🔥</span> Forge</h1>
+        <button
+          id="new-chat-btn"
+          title="New Chat"
+          aria-label="Start a new chat"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+               aria-hidden="true" focusable="false">
+            <path d="M8 1v14M1 8h14" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>New Chat</span>
+        </button>
+      </div>
+
+      <nav id="session-list" aria-label="Previous conversations">
+        <!-- JS populates: .session-item elements with data-id attribute -->
+        <!-- Each has: .session-title span, .session-delete button       -->
+      </nav>
+
+      <div id="sidebar-footer">
+        <span class="version-label">Forge v0.1</span>
+      </div>
+    </aside>
+
+    <!-- Overlay backdrop for mobile sidebar -->
+    <div id="sidebar-overlay" aria-hidden="true"></div>
+
+    <!-- ─── Main Chat Area ──────────────────────────────────── -->
+    <main id="main" aria-label="Chat area">
+      <header id="chat-header">
+        <button
+          id="sidebar-toggle"
+          title="Toggle sidebar"
+          aria-label="Toggle sidebar navigation"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+               aria-hidden="true" focusable="false">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <select id="model-select" title="Select model" aria-label="Select AI model">
+          <!-- JS populates from /v1/models -->
+        </select>
+
+        <span id="chat-title">New Chat</span>
+      </header>
+
+      <!-- Messages container — live region so screen readers announce new messages -->
+      <div id="messages" role="log" aria-live="polite" aria-relevant="additions">
+        <!-- JS populates: .message elements                          -->
+        <!-- Each message: .message.user or .message.assistant        -->
+        <!-- Contains: .message-content div (markdown rendered)       -->
+      </div>
+
+      <!-- Welcome / empty state -->
+      <div id="welcome-screen" aria-label="Welcome">
+        <div class="welcome-inner">
+          <div class="welcome-icon" aria-hidden="true">🔥</div>
+          <h2>Welcome to Forge</h2>
+          <p>Select a conversation or start a new chat</p>
+          <div class="welcome-hints">
+            <div class="hint-card">
+              <span class="hint-icon" aria-hidden="true">💡</span>
+              <span>Ask anything — code, writing, analysis</span>
+            </div>
+            <div class="hint-card">
+              <span class="hint-icon" aria-hidden="true">🔄</span>
+              <span>Switch models on the fly</span>
+            </div>
+            <div class="hint-card">
+              <span class="hint-icon" aria-hidden="true">📝</span>
+              <span>Conversations are saved automatically</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing / loading indicator (hidden by default) -->
+      <div id="typing-indicator" class="typing-indicator" aria-label="Assistant is typing" role="status" hidden>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+
+      <!-- Input area — sticky bottom -->
+      <div id="input-area">
+        <label for="message-input" class="sr-only">Type a message</label>
+        <textarea
+          id="message-input"
+          placeholder="Type a message…"
+          rows="1"
+          aria-label="Message input"
+        ></textarea>
+        <button
+          id="send-btn"
+          title="Send message"
+          aria-label="Send message"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
+               aria-hidden="true" focusable="false">
+            <path d="M2 9l7-7v5h7v4h-7v5L2 9z" fill="currentColor"/>
+          </svg>
+          <span class="btn-label">Send</span>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Application logic (contract with JS developer) -->
+  <script src="/chat/js/app.js"></script>
+</body>
+</html>

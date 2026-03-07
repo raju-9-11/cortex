@@ -36,10 +36,11 @@ const (
 
 // SendMessageRequest is the request body for POST /api/sessions/{id}/messages.
 type SendMessageRequest struct {
-	Content  string  `json:"content"`             // Message text
-	Role     string  `json:"role,omitempty"`      // Defaults to "user", server validates
-	Stream   bool    `json:"stream,omitempty"`    // SSE streaming response
-	ParentID *string `json:"parent_id,omitempty"` // For branching (Phase 8)
+	Content     string              `json:"content"`                // Message text
+	Role        string              `json:"role,omitempty"`         // Defaults to "user", server validates
+	Stream      bool                `json:"stream,omitempty"`       // SSE streaming response
+	ParentID    *string             `json:"parent_id,omitempty"`    // For branching (Phase 8)
+	Attachments []MessageAttachment `json:"attachments,omitempty"`  // Media references (voice/video phase)
 }
 
 // SendMessageResponse is the non-streaming response for POST /api/sessions/{id}/messages.
