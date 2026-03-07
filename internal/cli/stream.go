@@ -32,6 +32,10 @@ type renderState struct {
 	// pendingCount tracks how many consecutive pending chars we've
 	// accumulated (e.g. 1 backtick, 2 backticks, etc.)
 	pendingCount int
+	// UTF-8 buffering: holds incomplete multi-byte sequences between deltas
+	utfBuf    [4]byte
+	utfBufLen int
+	utfExpect int // total bytes expected for current rune (0 = not in a multi-byte seq)
 }
 
 // RenderStream reads events from the channel and writes content deltas
@@ -49,7 +53,8 @@ func RenderStream(ctx context.Context, events <-chan types.StreamEvent, w io.Wri
 	for {
 		select {
 		case <-ctx.Done():
-			// Flush any pending character before returning.
+			// Flush any buffered UTF-8 bytes and pending characters.
+			flushUTF8(&state, &raw, w)
 			if state.pendingCount > 0 {
 				flushPending(&state, &raw, w)
 			}
@@ -61,7 +66,8 @@ func RenderStream(ctx context.Context, events <-chan types.StreamEvent, w io.Wri
 
 		case ev, ok := <-events:
 			if !ok {
-				// Channel closed — flush pending and add trailing newline.
+				// Channel closed — flush buffered UTF-8 and pending, add trailing newline.
+				flushUTF8(&state, &raw, w)
 				if state.pendingCount > 0 {
 					flushPending(&state, &raw, w)
 				}
@@ -125,6 +131,19 @@ func processDelta(delta string, state *renderState, raw *strings.Builder, w io.W
 	for i := 0; i < len(delta); i++ {
 		ch := delta[i]
 
+		// If we're accumulating a multi-byte UTF-8 sequence, buffer this byte.
+		if state.utfExpect > 0 {
+			state.utfBuf[state.utfBufLen] = ch
+			state.utfBufLen++
+			if state.utfBufLen == state.utfExpect {
+				// Complete rune — emit it all at once.
+				emitRune(state.utfBuf[:state.utfBufLen], state, raw, w)
+				state.utfExpect = 0
+				state.utfBufLen = 0
+			}
+			continue
+		}
+
 		// If we have a pending character, resolve it.
 		if state.pendingCount > 0 {
 			resolved := resolvePending(ch, state, raw, w)
@@ -132,6 +151,17 @@ func processDelta(delta string, state *renderState, raw *strings.Builder, w io.W
 				continue // ch was consumed as part of the marker
 			}
 			// ch was not part of the marker — fall through to process it normally.
+		}
+
+		// Check for UTF-8 multi-byte leading byte (>= 0xC0).
+		if ch >= 0xC0 {
+			n := utf8SeqLen(ch)
+			if n > 1 {
+				state.utfBuf[0] = ch
+				state.utfBufLen = 1
+				state.utfExpect = n
+				continue
+			}
 		}
 
 		// Inside code blocks, only triple-backtick can close — everything else is literal.
@@ -263,6 +293,42 @@ func toggleInlineCode(state *renderState, w io.Writer) {
 func emitChar(ch byte, state *renderState, raw *strings.Builder, w io.Writer) {
 	raw.WriteByte(ch)
 	fmt.Fprintf(w, "%c", ch)
+}
+
+// emitRune writes a complete multi-byte UTF-8 rune to both the ANSI writer
+// and the raw accumulator.
+func emitRune(buf []byte, state *renderState, raw *strings.Builder, w io.Writer) {
+	raw.Write(buf)
+	_, _ = w.Write(buf)
+}
+
+// utf8SeqLen returns the expected byte length of a UTF-8 sequence given its
+// leading byte. Returns 1 for ASCII or invalid leading bytes.
+func utf8SeqLen(lead byte) int {
+	if lead&0x80 == 0 {
+		return 1 // ASCII
+	}
+	if lead&0xE0 == 0xC0 {
+		return 2
+	}
+	if lead&0xF0 == 0xE0 {
+		return 3
+	}
+	if lead&0xF8 == 0xF0 {
+		return 4
+	}
+	return 1 // invalid leading byte
+}
+
+// flushUTF8 emits any buffered partial UTF-8 bytes. Called when the stream
+// ends to avoid losing data.
+func flushUTF8(state *renderState, raw *strings.Builder, w io.Writer) {
+	if state.utfBufLen > 0 {
+		raw.Write(state.utfBuf[:state.utfBufLen])
+		_, _ = w.Write(state.utfBuf[:state.utfBufLen])
+		state.utfBufLen = 0
+		state.utfExpect = 0
+	}
 }
 
 // lastByte returns the last byte of s, or 0 if s is empty.

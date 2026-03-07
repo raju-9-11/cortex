@@ -353,3 +353,124 @@ func TestRenderStream_ContentDoneAndStatus(t *testing.T) {
 		t.Errorf("fullText = %q, want 'data'", fullText)
 	}
 }
+
+func TestRenderStream_Emoji(t *testing.T) {
+	evts := []types.StreamEvent{
+		contentDelta("Hello 🔥 world"),
+	}
+
+	var buf bytes.Buffer
+	fullText, err := RenderStream(context.Background(), makeEvents(evts...), &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantFull := "Hello 🔥 world"
+	if fullText != wantFull {
+		t.Errorf("fullText = %q, want %q", fullText, wantFull)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "🔥") {
+		t.Errorf("output missing emoji, got: %q", output)
+	}
+}
+
+func TestRenderStream_SplitUTF8(t *testing.T) {
+	// 🔥 is U+1F525, UTF-8: F0 9F 94 A5
+	// Split: first 2 bytes in delta 1, last 2 bytes in delta 2.
+	fire := []byte("🔥") // F0 9F 94 A5
+	delta1 := "Hello " + string(fire[:2])
+	delta2 := string(fire[2:]) + " world"
+
+	evts := []types.StreamEvent{
+		contentDelta(delta1),
+		contentDelta(delta2),
+	}
+
+	var buf bytes.Buffer
+	fullText, err := RenderStream(context.Background(), makeEvents(evts...), &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantFull := "Hello 🔥 world"
+	if fullText != wantFull {
+		t.Errorf("fullText = %q, want %q", fullText, wantFull)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "🔥") {
+		t.Errorf("output missing emoji, got: %q", output)
+	}
+	if !strings.Contains(output, "Hello") {
+		t.Errorf("output missing 'Hello', got: %q", output)
+	}
+	if !strings.Contains(output, "world") {
+		t.Errorf("output missing 'world', got: %q", output)
+	}
+}
+
+func TestRenderStream_CJK(t *testing.T) {
+	// 中 is U+4E2D, UTF-8: E4 B8 AD
+	// 文 is U+6587, UTF-8: E6 96 87
+	// Split 中 across deltas: first byte in delta 1, remaining in delta 2.
+	zhong := []byte("中") // E4 B8 AD
+	delta1 := "Hello " + string(zhong[:1])
+	delta2 := string(zhong[1:]) + "文"
+
+	evts := []types.StreamEvent{
+		contentDelta(delta1),
+		contentDelta(delta2),
+	}
+
+	var buf bytes.Buffer
+	fullText, err := RenderStream(context.Background(), makeEvents(evts...), &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantFull := "Hello 中文"
+	if fullText != wantFull {
+		t.Errorf("fullText = %q, want %q", fullText, wantFull)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "中文") {
+		t.Errorf("output missing CJK characters, got: %q", output)
+	}
+}
+
+func TestRenderStream_MixedUTF8AndMarkdown(t *testing.T) {
+	evts := []types.StreamEvent{
+		contentDelta("**bold** 🎉 `code`"),
+	}
+
+	var buf bytes.Buffer
+	fullText, err := RenderStream(context.Background(), makeEvents(evts...), &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantFull := "bold 🎉 code"
+	if fullText != wantFull {
+		t.Errorf("fullText = %q, want %q", fullText, wantFull)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, Bold) {
+		t.Errorf("output missing Bold ANSI code, got: %q", output)
+	}
+	if !strings.Contains(output, Cyan) {
+		t.Errorf("output missing Cyan ANSI code, got: %q", output)
+	}
+	if !strings.Contains(output, "🎉") {
+		t.Errorf("output missing emoji, got: %q", output)
+	}
+	if !strings.Contains(output, "bold") {
+		t.Errorf("output missing 'bold', got: %q", output)
+	}
+	if !strings.Contains(output, "code") {
+		t.Errorf("output missing 'code', got: %q", output)
+	}
+}
