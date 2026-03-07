@@ -78,11 +78,12 @@ func main() {
 	// Fall back to mocks if no real providers are configured
 	if len(registry.Providers()) == 0 {
 		log.Println("No providers configured — using mock providers")
+		registry.Register(inference.NewMockProvider("ollama", []string{"Hello", " from", " Ollama", "!"}))
 		registry.Register(inference.NewMockProvider("qwen", []string{"Hi", " I", " am", " Qwen", "!"}))
 		registry.Register(inference.NewMockProvider("llama", []string{"Llama", " ", "here", "!"}))
 		registry.Register(inference.NewMockProvider("minimax", []string{"Minimax", " ", "says", " ", "hello", "!"}))
 		registry.Register(inference.NewMockProvider("oss", []string{"OSS", " ", "power", "!"}))
-		registry.SetDefault("qwen")
+		registry.SetDefault("ollama")
 	}
 
 	// 7. Create session manager
