@@ -76,3 +76,9 @@ func (m *MockProvider) ListModels(ctx context.Context) ([]types.ModelInfo, error
 func (m *MockProvider) Name() string {
 	return m.providerName
 }
+
+// SetFailAt configures the mock to return an error when trying to send the
+// token at the given index. Use -1 (default) to never fail.
+func (m *MockProvider) SetFailAt(index int) {
+	m.failAt = index
+}
