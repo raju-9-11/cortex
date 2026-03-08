@@ -210,7 +210,8 @@ func (s *SQLiteStore) ListSessions(ctx context.Context, params SessionListParams
 	}
 	defer rows.Close()
 
-	var sessions []Session
+	// Pre-allocate slice with capacity up to limit to minimize allocations.
+	sessions := make([]Session, 0, limit)
 	for rows.Next() {
 		sess, err := scanSessionRow(rows)
 		if err != nil {
@@ -337,7 +338,13 @@ func (s *SQLiteStore) ListMessages(ctx context.Context, params MessageListParams
 	}
 	defer rows.Close()
 
-	var messages []Message
+	// Pre-allocate slice capacity if a limit is provided to avoid re-allocations.
+	capacity := params.Limit
+	if capacity <= 0 {
+		// Default small capacity if no limit is specified.
+		capacity = 50
+	}
+	messages := make([]Message, 0, capacity)
 	for rows.Next() {
 		msg, err := scanMessageRow(rows)
 		if err != nil {
@@ -424,7 +431,8 @@ func (s *SQLiteStore) ListProviders(ctx context.Context) ([]Provider, error) {
 	}
 	defer rows.Close()
 
-	var providers []Provider
+	// Providers list is typically small; pre-allocate a reasonable capacity.
+	providers := make([]Provider, 0, 10)
 	for rows.Next() {
 		p, err := scanProviderRow(rows)
 		if err != nil {
