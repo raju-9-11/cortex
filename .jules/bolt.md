@@ -1,0 +1,3 @@
+## 2024-05-18 - Slice Pre-allocation in Database Queries
+**Learning:** Database queries that return slices (like lists of sessions or messages) dynamically grow slice arrays inside loops if the capacity is not pre-allocated, causing overhead due to re-allocations and memory copying.
+**Action:** When executing queries that return multiple records, particularly where limits are known or reasonable defaults can be assumed, always pre-allocate the initial capacity using `make([]Type, 0, limit)` to optimize database read paths.
