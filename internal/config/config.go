@@ -26,6 +26,8 @@ type Config struct {
 	// Inference Providers
 	DefaultProvider string `env:"CORTEX_PROVIDER" envDefault:"ollama"`
 	OllamaURL       string `env:"OLLAMA_URL" envDefault:"http://localhost:11434"`
+	ModelsDir       string `env:"CORTEX_MODELS_DIR" envDefault:"./models"`
+	LocalContextSize int    `env:"CORTEX_LOCAL_CTX" envDefault:"4096"`
 	OpenAIKey       string `env:"OPENAI_API_KEY"`
 	OpenAIBaseURL   string `env:"OPENAI_BASE_URL" envDefault:"https://api.openai.com/v1"`
 	AnthropicKey    string `env:"ANTHROPIC_API_KEY"`

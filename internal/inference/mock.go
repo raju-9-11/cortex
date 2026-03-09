@@ -79,6 +79,10 @@ func (m *MockProvider) Name() string {
 	return m.providerName
 }
 
+func (m *MockProvider) Close() error {
+	return nil
+}
+
 // SetFailAt configures the mock to return an error when trying to send the
 // token at the given index. Use -1 (default) to never fail.
 func (m *MockProvider) SetFailAt(index int) {

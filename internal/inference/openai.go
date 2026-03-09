@@ -51,6 +51,10 @@ func (p *OpenAIProvider) Name() string {
 	return p.providerName
 }
 
+func (p *OpenAIProvider) Close() error {
+	return nil
+}
+
 func (p *OpenAIProvider) Capabilities(model string) ModelCapabilities {
 	// For testing, just return default.
 	// In reality, could depend on the model name and provider

@@ -26,6 +26,9 @@ type InferenceProvider interface {
 
 	// Name returns the provider identifier
 	Name() string
+
+	// Close releases any resources held by the provider (e.g. background processes).
+	Close() error
 }
 
 type ModelCapabilities struct {

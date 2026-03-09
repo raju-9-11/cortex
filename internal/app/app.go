@@ -76,6 +76,11 @@ func New(opts ...Option) (*App, error) {
 	registry := inference.NewProviderRegistry()
 
 	// 5. Register providers
+	// Local Provider — scans models directory for GGUF files
+	localProvider := inference.NewLocalProvider(cfg.ModelsDir, cfg.LocalContextSize)
+	registry.Register(localProvider)
+	log.Printf("✅ Registered local provider (scanning %s, ctx=%d)", cfg.ModelsDir, cfg.LocalContextSize)
+
 	// Ollama — auto-detect at configured URL
 	ollamaProvider := inference.NewOllamaProvider(cfg.OllamaURL)
 	if ollamaProvider.Probe(context.Background()) {
@@ -154,8 +159,11 @@ func New(opts ...Option) (*App, error) {
 	}, nil
 }
 
-// Close releases resources (closes the store).
+// Close releases resources (closes the store and registry).
 func (a *App) Close() error {
+	if a.Registry != nil {
+		a.Registry.Close()
+	}
 	if a.Store != nil {
 		return a.Store.Close()
 	}

@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 
 	"cortex/internal/app"
 	"cortex/internal/cli"
@@ -23,7 +24,7 @@ func main() {
 // run dispatches subcommands and returns an exit code.
 // Separated from main() for testability.
 func run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
-	if len(args) > 0 {
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "help", "--help", "-h":
 			cli.PrintUsage(stdout, version)
@@ -44,17 +45,34 @@ func run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 			return 1
 		}
 	}
-	return startServer(stdout, stderr)
+	return startServer(args, stdout, stderr)
 }
 
 // startServer starts the Cortex HTTP API server.
-func startServer(stdout, stderr io.Writer) int {
+func startServer(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("server", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	model := fs.String("model", "", "Default model to use")
+	provider := fs.String("provider", "", "Default provider to use")
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
 	application, err := app.New(app.WithVersion(version))
 	if err != nil {
 		log.New(stderr, "", 0).Fatalf("Failed to initialize: %v", err)
 		return 1
 	}
 	defer application.Close()
+
+	// Override defaults from flags if provided
+	if *model != "" {
+		application.Config.DefaultModel = *model
+	}
+	if *provider != "" {
+		application.Config.DefaultProvider = *provider
+		application.Registry.SetDefault(*provider)
+	}
 
 	// Startup banner
 	models := application.Registry.ListAllModels(context.Background())
@@ -65,6 +83,7 @@ func startServer(stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "  Providers: %d registered\n", len(application.Registry.Providers()))
 	fmt.Fprintf(stdout, "  Models:    %d available\n", len(models))
+	fmt.Fprintf(stdout, "  Default:   %s / %s\n", application.Config.DefaultProvider, application.Config.DefaultModel)
 	fmt.Fprintln(stdout)
 
 	srv := server.New(application.Config, application.Registry, application.Store, application.SessionMgr, application.Auth)

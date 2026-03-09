@@ -336,6 +336,10 @@
 
   async function createNewSession() {
     try {
+      // Ensure models are loaded before creating a session
+      if (state.models.length === 0) {
+        await loadModels();
+      }
       const model = els.modelSelect?.value || '';
       const session = await api.createSession('New Chat', model);
       state.sessions.unshift(session);

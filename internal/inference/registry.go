@@ -159,3 +159,13 @@ func (r *ProviderRegistry) Providers() map[string]InferenceProvider {
 	}
 	return snapshot
 }
+
+// Close closes all registered providers.
+func (r *ProviderRegistry) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, p := range r.providers {
+		_ = p.Close()
+	}
+}

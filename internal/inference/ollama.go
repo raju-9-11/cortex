@@ -146,6 +146,10 @@ func (p *OllamaProvider) Name() string {
 	return "ollama"
 }
 
+func (p *OllamaProvider) Close() error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Probe
 // ---------------------------------------------------------------------------
