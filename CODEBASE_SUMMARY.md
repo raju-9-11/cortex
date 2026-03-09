@@ -1,8 +1,8 @@
-# FORGE CODEBASE — COMPLETE DESIGN & ROADMAP SUMMARY
+# CORTEX CODEBASE — COMPLETE DESIGN & ROADMAP SUMMARY
 
 ## EXECUTIVE SUMMARY
 
-**Forge** is a unified AI backend written in Go that provides a single static binary for LLM inference across multiple providers. It abstracts away provider differences through an OpenAI-compatible REST API, manages stateful conversation sessions with SQLite persistence, and powers both a React web UI (phase 2) and a TUI terminal client (forge-link, phase 3+).
+**Cortex** is a unified AI backend written in Go that provides a single static binary for LLM inference across multiple providers. It abstracts away provider differences through an OpenAI-compatible REST API, manages stateful conversation sessions with SQLite persistence, and powers both a React web UI (phase 2) and a TUI terminal client (cortex-link, phase 3+).
 
 ### Current Status
 - ✅ **Core inference engine working**: Ollama, OpenAI, Qwen, Llama, Minimax, OSS providers
@@ -23,8 +23,8 @@
 3. **API_SPEC.md** (36 KB / 1300+ lines) — Complete API contract for frontend
 4. **sprint-1.md** (136 lines) — 14 critical/high-priority fixes needed
 5. **backlog.md** (537 lines) — Medium/low priority work items (100+ items)
-6. **forge-link-prd.md** (495 lines) — TUI client product vision & requirements
-7. **tui-design.md** (1095 lines) — TUI design specification & keybindings
+6. **cortex-link-prd.md** (495 lines) — TUI client product vision & requirements
+7. **cortex-link-design.md** (1095 lines) — TUI design specification & keybindings
 
 ---
 
@@ -32,7 +32,7 @@
 
 ### Layer 1: Frontend (Phase 2+)
 - React web UI (3-column: sidebar, chat, inspector)
-- forge-link terminal client (inline REPL)
+- cortex-link terminal client (inline REPL)
 
 ### Layer 2: REST API
 
@@ -42,7 +42,7 @@ POST   /v1/chat/completions          (streaming & non-streaming)
 GET    /v1/models                    (all providers)
 ```
 
-**Forge-Native (NEW):**
+**Cortex-Native (NEW):**
 ```
 Health & Config:
   GET  /api/health                   (status indicator)
@@ -180,7 +180,7 @@ models[], has_api_key (never expose), is_env_var
 - Session/message CRUD
 - Static file serving (embed.go)
 
-**Phase 3:** forge-link TUI Client
+**Phase 3:** cortex-link TUI Client
 - Inline scrolling REPL
 - Session switching
 - Streaming display
@@ -205,16 +205,16 @@ models[], has_api_key (never expose), is_env_var
 ## CONFIGURATION
 
 ### Server
-- `FORGE_ADDR` (default: `:8080`)
-- `FORGE_DEV` (default: `false`)
-- `FORGE_API_KEY` (optional, enables auth)
+- `CORTEX_ADDR` (default: `:8080`)
+- `CORTEX_DEV` (default: `false`)
+- `CORTEX_API_KEY` (optional, enables auth)
 
 ### Database
 - `DATABASE_URL` (PostgreSQL URL; overrides SQLite)
-- `FORGE_DB_PATH` (default: `forge.db`)
+- `CORTEX_DB_PATH` (default: `cortex.db`)
 
 ### Providers
-- `FORGE_PROVIDER` (default: `qwen`)
+- `CORTEX_PROVIDER` (default: `qwen`)
 - `OLLAMA_URL` (default: `http://localhost:11434`)
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`
 - `QWEN_API_KEY`, `QWEN_BASE_URL`
@@ -223,14 +223,14 @@ models[], has_api_key (never expose), is_env_var
 - `OSS_API_KEY`, `OSS_BASE_URL`
 
 ### Limits
-- `FORGE_MAX_TOOL_TIMEOUT` (default: `60s`)
-- `FORGE_MAX_TOOL_OUTPUT` (default: `65536` bytes)
-- `FORGE_MAX_MESSAGE_SIZE` (default: `102400` bytes)
+- `CORTEX_MAX_TOOL_TIMEOUT` (default: `60s`)
+- `CORTEX_MAX_TOOL_OUTPUT` (default: `65536` bytes)
+- `CORTEX_MAX_MESSAGE_SIZE` (default: `102400` bytes)
 
 ### Logging
-- `FORGE_LOG_LEVEL` (default: `info`)
-- `FORGE_LOG_FORMAT` (default: `json`)
-- `FORGE_CORS_ORIGINS` (default: `*`)
+- `CORTEX_LOG_LEVEL` (default: `info`)
+- `CORTEX_LOG_FORMAT` (default: `json`)
+- `CORTEX_CORS_ORIGINS` (default: `*`)
 
 ---
 
@@ -256,7 +256,7 @@ models[], has_api_key (never expose), is_env_var
 ## KEY FILE LOCATIONS
 
 ```
-cmd/forge/main.go                    — Entry point, DI
+cmd/cortex/main.go                    — Entry point, DI
 
 internal/
   config/config.go                   — Configuration
@@ -300,12 +300,12 @@ pkg/types/                           — All type definitions
 - Refactoring (interfaces, validators)
 - Database optimization
 
-**forge-link-prd.md (495 lines):**
+**cortex-link-prd.md (495 lines):**
 - Vision: "Your terminal's AI brain — any model, fully local or cloud"
 - User personas: Solo dev, team lead, researcher, privacy-focused
 - MVP: Sessions, streaming, multi-provider, inline REPL
 
-**tui-design.md (1095 lines):**
+**cortex-link-design.md (1095 lines):**
 - Design: Inline REPL (not full-screen)
 - Message stream with streaming display
 - Tool calls (compact → expandable)
@@ -332,7 +332,7 @@ pkg/types/                           — All type definitions
 
 **OpenAI-Compatible API:**
 - Why: Reuse integrations (Vercel AI SDK)
-- Trade-off: Forge-specific features in /api/* namespace
+- Trade-off: Cortex-specific features in /api/* namespace
 
 **Session-First:**
 - Why: Conversations are core use case
@@ -379,7 +379,7 @@ pkg/types/                           — All type definitions
 
 ## CONCLUSION
 
-**Forge** is well-architected, well-documented, with clear vision and roadmap. The core inference engine is solid and production-ready in isolation.
+**Cortex** is well-architected, well-documented, with clear vision and roadmap. The core inference engine is solid and production-ready in isolation.
 
 **Current Gaps:**
 - Production hardening (14 identified issues)

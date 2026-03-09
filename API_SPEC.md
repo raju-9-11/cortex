@@ -1,4 +1,4 @@
-# Forge — Backend API Specification for Frontend
+# Cortex — Backend API Specification for Frontend
 
 > **Author:** UI/UX Design Architect (review pass)
 > **Date:** 2025-07-15
@@ -290,7 +290,7 @@ package store
 
 import (
     "context"
-    "forge/pkg/types"
+    "cortex/pkg/types"
 )
 
 type Store interface {
@@ -371,7 +371,7 @@ accept a `session_id` header/field to persist messages.
   "stream": true,
   "temperature": 0.7,
   "max_tokens": 2048,
-  // NEW (Phase 2): Forge extension fields
+  // NEW (Phase 2): Cortex extension fields
   "session_id": "ses_01J...",     // Optional. If set, persist messages.
   "system_prompt": "..."          // Optional override, takes precedence over session default
 }
@@ -423,7 +423,7 @@ accept a `session_id` header/field to persist messages.
 
 ---
 
-### 4.2 Forge-Native Endpoints (ALL NEW)
+### 4.2 Cortex-Native Endpoints (ALL NEW)
 
 These power the Chat UI's sidebar, session management, settings, and inspector.
 All prefixed with `/api/` to separate from the OpenAI-compatible surface.
@@ -511,7 +511,7 @@ Creates a new session. Called when user clicks "New Chat" or sends first message
 }
 ```
 
-All fields optional. Defaults: `model` from config `FORGE_MODEL`, `title` = `"New Chat"`,
+All fields optional. Defaults: `model` from config `CORTEX_MODEL`, `title` = `"New Chat"`,
 `system_prompt` = `""`.
 
 **Response `201`:**
@@ -687,10 +687,10 @@ Composer bar calls. The backend:
 ```
 
 **Response (stream=true):** SSE stream in OpenAI chunk format (same as `/v1/chat/completions`),
-but with two additional Forge-specific SSE events at boundaries:
+but with two additional Cortex-specific SSE events at boundaries:
 
 ```
-event: forge.message_created
+event: cortex.message_created
 data: {"id":"msg_01JKLMNO","role":"user","token_count":10}
 
 data: {"id":"chatcmpl-...","choices":[{"delta":{"role":"assistant"}}]}
@@ -703,7 +703,7 @@ data: {"id":"chatcmpl-...","choices":[{"delta":{"content":"are..."}}]}
 
 data: {"id":"chatcmpl-...","choices":[{"finish_reason":"stop"}]}
 
-event: forge.message_created
+event: cortex.message_created
 data: {"id":"msg_01JPQRST","role":"assistant","token_count":180,"model":"llama3.2:1b"}
 
 data: [DONE]
@@ -836,7 +836,7 @@ Returns non-sensitive runtime configuration for the frontend. Powers the Setting
   "auth_enabled": false,
   "dev_mode": true,
   "version": "0.1.0-dev",
-  "env_overrides": ["FORGE_MODEL", "OLLAMA_URL"]
+  "env_overrides": ["CORTEX_MODEL", "OLLAMA_URL"]
 }
 ```
 

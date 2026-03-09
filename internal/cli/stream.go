@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // ANSI escape codes

@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // dummyHandler returns a 200 with body "ok" — proves the request got through.

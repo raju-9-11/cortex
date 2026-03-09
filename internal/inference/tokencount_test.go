@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 func TestEstimateTokens_EmptyMessages(t *testing.T) {

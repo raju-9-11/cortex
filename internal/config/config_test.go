@@ -21,21 +21,21 @@ func unsetEnv(t *testing.T, key string) {
 // can start from a clean slate.
 func allConfigEnvVars() []string {
 	return []string{
-		"FORGE_ADDR", "FORGE_DEV",
-		"DATABASE_URL", "FORGE_DB_PATH",
-		"FORGE_API_KEY",
-		"FORGE_CONFIG",
-		"FORGE_PROVIDER", "OLLAMA_URL",
+		"CORTEX_ADDR", "CORTEX_DEV",
+		"DATABASE_URL", "CORTEX_DB_PATH",
+		"CORTEX_API_KEY",
+		"CORTEX_CONFIG",
+		"CORTEX_PROVIDER", "OLLAMA_URL",
 		"OPENAI_API_KEY", "OPENAI_BASE_URL",
 		"ANTHROPIC_API_KEY",
-		"FORGE_MODEL",
+		"CORTEX_MODEL",
 		"QWEN_BASE_URL", "QWEN_API_KEY",
 		"LLAMA_BASE_URL", "LLAMA_API_KEY",
 		"MINIMAX_BASE_URL", "MINIMAX_API_KEY",
 		"OSS_BASE_URL", "OSS_API_KEY",
-		"FORGE_MAX_TOOL_TIMEOUT", "FORGE_MAX_TOOL_OUTPUT", "FORGE_MAX_MESSAGE_SIZE",
-		"FORGE_LOG_LEVEL", "FORGE_LOG_FORMAT",
-		"FORGE_CORS_ORIGINS",
+		"CORTEX_MAX_TOOL_TIMEOUT", "CORTEX_MAX_TOOL_OUTPUT", "CORTEX_MAX_MESSAGE_SIZE",
+		"CORTEX_LOG_LEVEL", "CORTEX_LOG_FORMAT",
+		"CORTEX_CORS_ORIGINS",
 	}
 }
 
@@ -68,8 +68,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.DatabaseURL != "" {
 		t.Errorf("DatabaseURL = %q, want empty", cfg.DatabaseURL)
 	}
-	if cfg.SQLitePath != "forge.db" {
-		t.Errorf("SQLitePath = %q, want %q", cfg.SQLitePath, "forge.db")
+	if cfg.SQLitePath != "cortex.db" {
+		t.Errorf("SQLitePath = %q, want %q", cfg.SQLitePath, "cortex.db")
 	}
 
 	// Auth
@@ -132,16 +132,16 @@ func TestLoad_Defaults(t *testing.T) {
 func TestLoad_EnvOverrides(t *testing.T) {
 	clearAllConfigEnv(t)
 
-	t.Setenv("FORGE_ADDR", ":9090")
-	t.Setenv("FORGE_DEV", "true")
-	t.Setenv("FORGE_PROVIDER", "openai")
-	t.Setenv("FORGE_MODEL", "gpt-4")
+	t.Setenv("CORTEX_ADDR", ":9090")
+	t.Setenv("CORTEX_DEV", "true")
+	t.Setenv("CORTEX_PROVIDER", "openai")
+	t.Setenv("CORTEX_MODEL", "gpt-4")
 	t.Setenv("OLLAMA_URL", "http://remote:11434")
-	t.Setenv("FORGE_DB_PATH", "/tmp/test.db")
-	t.Setenv("DATABASE_URL", "postgres://localhost/forge")
-	t.Setenv("FORGE_API_KEY", "secret-key")
-	t.Setenv("FORGE_LOG_LEVEL", "debug")
-	t.Setenv("FORGE_LOG_FORMAT", "pretty")
+	t.Setenv("CORTEX_DB_PATH", "/tmp/test.db")
+	t.Setenv("DATABASE_URL", "postgres://localhost/cortex")
+	t.Setenv("CORTEX_API_KEY", "secret-key")
+	t.Setenv("CORTEX_LOG_LEVEL", "debug")
+	t.Setenv("CORTEX_LOG_FORMAT", "pretty")
 
 	cfg, err := Load()
 	if err != nil {
@@ -166,8 +166,8 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	if cfg.SQLitePath != "/tmp/test.db" {
 		t.Errorf("SQLitePath = %q, want %q", cfg.SQLitePath, "/tmp/test.db")
 	}
-	if cfg.DatabaseURL != "postgres://localhost/forge" {
-		t.Errorf("DatabaseURL = %q, want %q", cfg.DatabaseURL, "postgres://localhost/forge")
+	if cfg.DatabaseURL != "postgres://localhost/cortex" {
+		t.Errorf("DatabaseURL = %q, want %q", cfg.DatabaseURL, "postgres://localhost/cortex")
 	}
 	if cfg.APIKey != "secret-key" {
 		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "secret-key")
@@ -249,9 +249,9 @@ func TestLoad_BaseURLs(t *testing.T) {
 func TestLoad_Limits(t *testing.T) {
 	clearAllConfigEnv(t)
 
-	t.Setenv("FORGE_MAX_TOOL_TIMEOUT", "30s")
-	t.Setenv("FORGE_MAX_TOOL_OUTPUT", "32768")
-	t.Setenv("FORGE_MAX_MESSAGE_SIZE", "204800")
+	t.Setenv("CORTEX_MAX_TOOL_TIMEOUT", "30s")
+	t.Setenv("CORTEX_MAX_TOOL_OUTPUT", "32768")
+	t.Setenv("CORTEX_MAX_MESSAGE_SIZE", "204800")
 
 	cfg, err := Load()
 	if err != nil {
@@ -272,7 +272,7 @@ func TestLoad_Limits(t *testing.T) {
 func TestLoad_ConfigFilePath(t *testing.T) {
 	clearAllConfigEnv(t)
 
-	t.Setenv("FORGE_CONFIG", "/tmp/test.json")
+	t.Setenv("CORTEX_CONFIG", "/tmp/test.json")
 
 	cfg, err := Load()
 	if err != nil {
@@ -287,7 +287,7 @@ func TestLoad_ConfigFilePath(t *testing.T) {
 func TestLoad_CORSOrigins(t *testing.T) {
 	clearAllConfigEnv(t)
 
-	t.Setenv("FORGE_CORS_ORIGINS", "http://a.com,http://b.com")
+	t.Setenv("CORTEX_CORS_ORIGINS", "http://a.com,http://b.com")
 
 	cfg, err := Load()
 	if err != nil {
@@ -311,12 +311,12 @@ func TestLoad_EmptyEnvVars(t *testing.T) {
 	// caarlos0/env v11 treats empty env vars the same as unset and falls
 	// back to envDefault. Verify that fields with defaults keep their
 	// defaults when the env var is explicitly set to "".
-	t.Setenv("FORGE_ADDR", "")
-	t.Setenv("FORGE_PROVIDER", "")
-	t.Setenv("FORGE_MODEL", "")
-	t.Setenv("FORGE_DB_PATH", "")
-	t.Setenv("FORGE_LOG_LEVEL", "")
-	t.Setenv("FORGE_LOG_FORMAT", "")
+	t.Setenv("CORTEX_ADDR", "")
+	t.Setenv("CORTEX_PROVIDER", "")
+	t.Setenv("CORTEX_MODEL", "")
+	t.Setenv("CORTEX_DB_PATH", "")
+	t.Setenv("CORTEX_LOG_LEVEL", "")
+	t.Setenv("CORTEX_LOG_FORMAT", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -333,8 +333,8 @@ func TestLoad_EmptyEnvVars(t *testing.T) {
 	if cfg.DefaultModel != "llama3.2:latest" {
 		t.Errorf("DefaultModel = %q, want %q", cfg.DefaultModel, "llama3.2:latest")
 	}
-	if cfg.SQLitePath != "forge.db" {
-		t.Errorf("SQLitePath = %q, want %q", cfg.SQLitePath, "forge.db")
+	if cfg.SQLitePath != "cortex.db" {
+		t.Errorf("SQLitePath = %q, want %q", cfg.SQLitePath, "cortex.db")
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "info")
@@ -347,7 +347,7 @@ func TestLoad_EmptyEnvVars(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("DATABASE_URL", "")
-	t.Setenv("FORGE_API_KEY", "")
+	t.Setenv("CORTEX_API_KEY", "")
 
 	cfg2, err := Load()
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// APIError is the canonical error envelope returned by all Forge API endpoints.
+// APIError is the canonical error envelope returned by all Cortex API endpoints.
 // This replaces all bare http.Error() calls with a structured, machine-parseable format.
 //
 // Shape:

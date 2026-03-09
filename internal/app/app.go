@@ -5,11 +5,11 @@ import (
 	"log"
 	"net/http"
 
-	"forge/internal/auth"
-	"forge/internal/config"
-	"forge/internal/inference"
-	"forge/internal/session"
-	"forge/internal/store"
+	"cortex/internal/auth"
+	"cortex/internal/config"
+	"cortex/internal/inference"
+	"cortex/internal/session"
+	"cortex/internal/store"
 )
 
 // App holds all initialized application dependencies.

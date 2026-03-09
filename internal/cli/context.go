@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"forge/internal/inference"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/pkg/types"
 )
 
 // trimHistory reduces the message list to fit within the provider's context window.

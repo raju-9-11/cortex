@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"forge/internal/session"
-	"forge/internal/store"
-	"forge/pkg/types"
+	"cortex/internal/session"
+	"cortex/internal/store"
+	"cortex/pkg/types"
 )
 
 // RunREPL starts an interactive chat session.
@@ -78,7 +78,7 @@ func RunREPL(ctx context.Context, registry ModelResolver,
 	}
 
 	// 2. Print welcome banner.
-	fmt.Fprintf(out, "\n🔥 Forge Chat\n")
+	fmt.Fprintf(out, "\n🔥 Cortex Chat\n")
 	fmt.Fprintf(out, "  Model:   %s\n", model)
 	fmt.Fprintf(out, "  Session: %s\n", sess.ID)
 	fmt.Fprintf(out, "\nType your message and press Enter twice (blank line) to send.\n")
@@ -88,7 +88,7 @@ func RunREPL(ctx context.Context, registry ModelResolver,
 	scanner := bufio.NewScanner(in)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // 1MB max line
 	for {
-		fmt.Fprintf(out, "forge [%s]> ", shortModel(model))
+		fmt.Fprintf(out, "cortex [%s]> ", shortModel(model))
 
 		input, eof := readInput(scanner)
 		if eof {

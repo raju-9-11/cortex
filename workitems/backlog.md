@@ -53,9 +53,9 @@
 - **Fix:** Log parse errors. Consider storing as Unix timestamps instead of ISO strings.
 
 ### WI-109: Remove mock providers from production startup
-- **Files:** `cmd/forge/main.go:79-86`
+- **Files:** `cmd/cortex/main.go:79-86`
 - **Problem:** When no real providers are configured, mock providers are registered and serve fake responses. This can confuse users.
-- **Fix:** Only register mocks if `FORGE_DEV=true`. Otherwise, start with zero providers and return clear errors.
+- **Fix:** Only register mocks if `CORTEX_DEV=true`. Otherwise, start with zero providers and return clear errors.
 
 ### WI-110: Add `Probe()` to InferenceProvider interface
 - **Files:** `internal/inference/openai.go`, `internal/inference/registry.go`
@@ -193,7 +193,7 @@
   - `Open(ctx, id) → io.ReadCloser` — file content
   - `Delete(ctx, id)` — remove file + metadata
   - `LinkToMessage(ctx, mediaID, messageID)` — association table
-- **Config:** `FORGE_MEDIA_DIR` (default `./data/media/`), `FORGE_MAX_UPLOAD_BYTES` (default 50MB)
+- **Config:** `CORTEX_MEDIA_DIR` (default `./data/media/`), `CORTEX_MAX_UPLOAD_BYTES` (default 50MB)
 - **Acceptance:** Upload a file via API, retrieve it, delete it. Files survive server restart.
 
 #### VV-002: Media upload/serve API endpoints
@@ -324,7 +324,7 @@
   - `ExtractFrames(videoPath, opts) → []Frame` — uniform sampling (1/sec) or scene-change detection
   - Frames resized to max 1024px on longest edge, output as JPEG
   - EXIF data stripped for privacy
-- **Config:** `FORGE_FFMPEG_PATH` (default: auto-detect)
+- **Config:** `CORTEX_FFMPEG_PATH` (default: auto-detect)
 - **Limits:** Max 60 seconds video, max 50MB, max 30 frames per extraction
 - **Acceptance:** Upload 30-second MP4, get 10 keyframes as base64 JPEG.
 
@@ -434,15 +434,15 @@
 
 | Variable | Default | Phase | Description |
 |----------|---------|-------|-------------|
-| `FORGE_MEDIA_DIR` | `./data/media/` | V1 | Media file storage directory |
-| `FORGE_MAX_UPLOAD_BYTES` | `52428800` (50MB) | V1 | Max upload file size |
+| `CORTEX_MEDIA_DIR` | `./data/media/` | V1 | Media file storage directory |
+| `CORTEX_MAX_UPLOAD_BYTES` | `52428800` (50MB) | V1 | Max upload file size |
 | `ELEVENLABS_API_KEY` | *(empty)* | V2 | ElevenLabs TTS API key |
 | `DEEPGRAM_API_KEY` | *(empty)* | V2 | Deepgram STT API key |
 | `GEMINI_API_KEY` | *(empty)* | V2 | Google Gemini API key |
-| `FORGE_FFMPEG_PATH` | *(auto-detect)* | V2 | Path to ffmpeg binary |
-| `FORGE_MAX_VIDEO_DURATION` | `60` | V2 | Max video duration (seconds) |
-| `FORGE_MAX_FRAMES` | `30` | V2 | Max frames per video extraction |
-| `FORGE_VIDEO_GEN_CONCURRENCY` | `1` | V3 | Max concurrent video generation jobs |
+| `CORTEX_FFMPEG_PATH` | *(auto-detect)* | V2 | Path to ffmpeg binary |
+| `CORTEX_MAX_VIDEO_DURATION` | `60` | V2 | Max video duration (seconds) |
+| `CORTEX_MAX_FRAMES` | `30` | V2 | Max frames per video extraction |
+| `CORTEX_VIDEO_GEN_CONCURRENCY` | `1` | V3 | Max concurrent video generation jobs |
 
 ---
 
@@ -484,7 +484,7 @@ Phase V4 (depends on V2):
   - **Fields:** `AnthropicKey`, `DatabaseURL`, `LogLevel`, `LogFormat`, etc.
   - **Action:** Either implement or remove with a TODO/comment.
 - **WI-302: Gate mock providers on `DevMode`**
-  - **Location:** `cmd/forge/main.go`
+  - **Location:** `cmd/cortex/main.go`
   - **Problem:** Mocks used as production fallback.
 - **WI-303: Standardize non-streaming response check**
   - **Problem:** `json.Encode()` errors are unchecked in multiple handlers.
@@ -506,7 +506,7 @@ Phase V4 (depends on V2):
   - **Problem:** Risk of goroutine leaks if upstream hangs mid-stream.
 
 ### API Design & DX (Source: API Design Review)
-- **WI-311: Consistent Forge-native API Envelopes**
+- **WI-311: Consistent Cortex-native API Envelopes**
   - **Problem:** `POST /api/sessions` and `PATCH` return bare objects; others are wrapped.
 - **WI-312: Use human-readable SSE error messages**
   - **Problem:** Raw Go errors (e.g., "context deadline exceeded") leaked to client.

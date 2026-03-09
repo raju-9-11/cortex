@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // NewMiddleware returns an http middleware that validates Bearer tokens.

@@ -8,10 +8,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"forge/internal/session"
+	"cortex/internal/session"
 )
 
-// RunSessions handles the `forge sessions` subcommand.
+// RunSessions handles the `cortex sessions` subcommand.
 // action: "" or "list" → list sessions
 //
 //	"show"   → show session details

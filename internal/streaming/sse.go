@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"forge/internal/inference"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/pkg/types"
 
 	"github.com/google/uuid"
 )

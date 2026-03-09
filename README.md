@@ -1,9 +1,9 @@
-# Forge
+# Cortex
 
-Forge is a unified AI backend delivered as a **single static binary** written in Go. It abstracts LLM inference across multiple providers, manages stateful conversation sessions with SQLite persistence, and exposes an OpenAI-compatible API — all with zero external dependencies.
+Cortex is a unified AI backend delivered as a **single static binary** written in Go. It abstracts LLM inference across multiple providers, manages stateful conversation sessions with SQLite persistence, and exposes an OpenAI-compatible API — all with zero external dependencies.
 
 ```
-🔥 Forge dev
+🔥 Cortex dev
   API:    http://localhost:8080/v1/chat/completions
   Health: http://localhost:8080/api/health
 
@@ -28,32 +28,32 @@ Forge is a unified AI backend delivered as a **single static binary** written in
 ### Build
 
 ```bash
-go build -o forge ./cmd/forge
+go build -o cortex ./cmd/cortex
 ```
 
 Or with version info:
 
 ```bash
-go build -ldflags "-X main.version=1.0.0" -o forge ./cmd/forge
+go build -ldflags "-X main.version=1.0.0" -o cortex ./cmd/cortex
 ```
 
 ### Run
 
 ```bash
-# Minimal — auto-detects local Ollama, SQLite at ./forge.db
-./forge
+# Minimal — auto-detects local Ollama, SQLite at ./cortex.db
+./cortex
 
 # With OpenAI
-OPENAI_API_KEY=sk-... ./forge
+OPENAI_API_KEY=sk-... ./cortex
 
 # With auth enabled
-FORGE_API_KEY=my-secret-key ./forge
+CORTEX_API_KEY=my-secret-key ./cortex
 
 # Custom port
-FORGE_ADDR=:3000 ./forge
+CORTEX_ADDR=:3000 ./cortex
 ```
 
-Forge auto-detects Ollama at `http://localhost:11434` on startup. If no providers are configured, it falls back to built-in mock providers for testing.
+Cortex auto-detects Ollama at `http://localhost:11434` on startup. If no providers are configured, it falls back to built-in mock providers for testing.
 
 ## API Reference
 
@@ -63,7 +63,7 @@ Forge auto-detects Ollama at `http://localhost:11434` on startup. If no provider
 |--------|------|-------------|
 | `GET` | `/api/health` | Health check (DB, providers, uptime) |
 
-### Protected Endpoints (require `Authorization: Bearer <key>` when `FORGE_API_KEY` is set)
+### Protected Endpoints (require `Authorization: Bearer <key>` when `CORTEX_API_KEY` is set)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -114,7 +114,7 @@ Models are resolved in order:
 
 1. **Prefix** — `openai/gpt-4o` routes to the `openai` provider with model `gpt-4o`
 2. **Catalog** — Known model names are mapped to their provider at startup via `/v1/models` (or `/api/tags` for Ollama)
-3. **Default** — Falls back to the provider set via `FORGE_PROVIDER`
+3. **Default** — Falls back to the provider set via `CORTEX_PROVIDER`
 
 ## Configuration
 
@@ -124,24 +124,24 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_ADDR` | `:8080` | Listen address |
-| `FORGE_DEV` | `false` | Development mode |
-| `FORGE_API_KEY` | *(empty)* | API key for auth (empty = no auth) |
-| `FORGE_CORS_ORIGINS` | `*` | Comma-separated allowed origins |
+| `CORTEX_ADDR` | `:8080` | Listen address |
+| `CORTEX_DEV` | `false` | Development mode |
+| `CORTEX_API_KEY` | *(empty)* | API key for auth (empty = no auth) |
+| `CORTEX_CORS_ORIGINS` | `*` | Comma-separated allowed origins |
 
 ### Database
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_DB_PATH` | `forge.db` | SQLite database file path |
+| `CORTEX_DB_PATH` | `cortex.db` | SQLite database file path |
 | `DATABASE_URL` | *(empty)* | PostgreSQL URL (if set, overrides SQLite) |
 
 ### Providers
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_PROVIDER` | `qwen` | Default provider name |
-| `FORGE_MODEL` | `qwen2.5:0.5b` | Default model |
+| `CORTEX_PROVIDER` | `qwen` | Default provider name |
+| `CORTEX_MODEL` | `qwen2.5:0.5b` | Default model |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
 | `OPENAI_API_KEY` | *(empty)* | OpenAI API key |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI base URL |
@@ -155,21 +155,21 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_MAX_TOOL_TIMEOUT` | `60s` | Max tool execution timeout |
-| `FORGE_MAX_TOOL_OUTPUT` | `65536` | Max tool output (bytes) |
-| `FORGE_MAX_MESSAGE_SIZE` | `102400` | Max message body (bytes) |
+| `CORTEX_MAX_TOOL_TIMEOUT` | `60s` | Max tool execution timeout |
+| `CORTEX_MAX_TOOL_OUTPUT` | `65536` | Max tool output (bytes) |
+| `CORTEX_MAX_MESSAGE_SIZE` | `102400` | Max message body (bytes) |
 
 ### Logging
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FORGE_LOG_LEVEL` | `info` | Log level |
-| `FORGE_LOG_FORMAT` | `json` | Log format (`json` or `pretty`) |
+| `CORTEX_LOG_LEVEL` | `info` | Log level |
+| `CORTEX_LOG_FORMAT` | `json` | Log format (`json` or `pretty`) |
 
 ## Architecture
 
 ```
-cmd/forge/main.go          → Entry point, DI wiring, startup banner
+cmd/cortex/main.go          → Entry point, DI wiring, startup banner
 internal/
   config/                  → Environment-based configuration
   server/                  → HTTP server, chi router, middleware, CORS

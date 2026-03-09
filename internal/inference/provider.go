@@ -3,7 +3,7 @@ package inference
 import (
 	"context"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 type InferenceProvider interface {

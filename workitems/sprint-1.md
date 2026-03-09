@@ -112,7 +112,7 @@
 - **Flagged by:** Product Manager, Architect
 - **Files:** All files using `log.Printf` or `log.Fatalf`
 - **Problem:** `log.Printf` produces unstructured text with no levels, no request IDs, no JSON output. Impossible to parse in production log aggregators.
-- **Fix:** Replace with `log/slog` (stdlib). Use `slog.Info`, `slog.Error`, `slog.Warn`. Respect `FORGE_LOG_FORMAT` config for JSON vs text. Add request ID from chi middleware.
+- **Fix:** Replace with `log/slog` (stdlib). Use `slog.Info`, `slog.Error`, `slog.Warn`. Respect `CORTEX_LOG_FORMAT` config for JSON vs text. Add request ID from chi middleware.
 - **Acceptance:** All log output is structured. JSON format works. Request IDs appear in request-scoped logs.
 
 ### WI-014: Add HTTP server timeouts

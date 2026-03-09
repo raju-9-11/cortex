@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"forge/internal/api"
-	"forge/internal/config"
-	"forge/internal/inference"
-	"forge/internal/session"
-	"forge/internal/store"
-	"forge/internal/web"
+	"cortex/internal/api"
+	"cortex/internal/config"
+	"cortex/internal/inference"
+	"cortex/internal/session"
+	"cortex/internal/store"
+	"cortex/internal/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

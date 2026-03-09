@@ -25,12 +25,12 @@ func TestPrintUsage_ContainsEnvVars(t *testing.T) {
 	output := buf.String()
 
 	envVars := []string{
-		"FORGE_PROVIDER",
-		"FORGE_MODEL",
-		"FORGE_ADDR",
-		"FORGE_API_KEY",
-		"FORGE_DB_PATH",
-		"FORGE_CONFIG",
+		"CORTEX_PROVIDER",
+		"CORTEX_MODEL",
+		"CORTEX_ADDR",
+		"CORTEX_API_KEY",
+		"CORTEX_DB_PATH",
+		"CORTEX_CONFIG",
 		"OLLAMA_URL",
 	}
 	for _, env := range envVars {
@@ -54,7 +54,7 @@ func TestPrintVersion(t *testing.T) {
 	var buf bytes.Buffer
 	PrintVersion(&buf, "1.2.3")
 	got := buf.String()
-	want := "forge 1.2.3\n"
+	want := "cortex 1.2.3\n"
 	if got != want {
 		t.Errorf("PrintVersion output = %q, want %q", got, want)
 	}
@@ -71,7 +71,7 @@ func TestPrintUnknownCommand(t *testing.T) {
 	if !strings.Contains(output, "Error:") {
 		t.Errorf("unknown command output should start with Error:; got:\n%s", output)
 	}
-	if !strings.Contains(output, "forge help") {
-		t.Errorf("unknown command output should suggest 'forge help'; got:\n%s", output)
+	if !strings.Contains(output, "cortex help") {
+		t.Errorf("unknown command output should suggest 'cortex help'; got:\n%s", output)
 	}
 }

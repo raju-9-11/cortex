@@ -9,7 +9,7 @@ import (
 
 func setupTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
-	tmpFile, err := os.CreateTemp(t.TempDir(), "forge-test-*.db")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "cortex-test-*.db")
 	if err != nil {
 		t.Fatal(err)
 	}

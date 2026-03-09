@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"forge/internal/inference"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/pkg/types"
 )
 
 // testProvider is a mock inference provider with configurable capabilities

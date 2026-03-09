@@ -23,7 +23,7 @@ def download_modelscope(model_id, local_dir):
     print("Done!")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Download local models for testing Forge")
+    parser = argparse.ArgumentParser(description="Download local models for testing Cortex")
     parser.add_argument("--model", type=str, choices=list(MODELS.keys()), default="qwen", help="Model to download")
     parser.add_argument("--source", type=str, choices=["hf", "ms"], default="hf", help="Source to download from (hf=HuggingFace, ms=ModelScope)")
     parser.add_argument("--dir", type=str, default="./models", help="Directory to save models")

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"forge/internal/store"
+	"cortex/internal/store"
 )
 
 // setupTestManager creates a SessionManagerImpl backed by a real SQLite store
@@ -16,7 +16,7 @@ import (
 func setupTestManager(t *testing.T) *SessionManagerImpl {
 	t.Helper()
 
-	tmpFile, err := os.CreateTemp(t.TempDir(), "forge-session-test-*.db")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "cortex-session-test-*.db")
 	if err != nil {
 		t.Fatal(err)
 	}

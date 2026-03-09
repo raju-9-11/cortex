@@ -3,8 +3,8 @@ package cli
 import (
 	"context"
 
-	"forge/internal/inference"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/pkg/types"
 )
 
 // ModelResolver abstracts provider registry operations needed by CLI commands.

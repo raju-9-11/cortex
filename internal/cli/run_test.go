@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"forge/internal/inference"
+	"cortex/internal/inference"
 )
 
 func TestRunOnce_BasicPrompt(t *testing.T) {

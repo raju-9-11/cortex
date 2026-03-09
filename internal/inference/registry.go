@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // ProviderRegistry manages inference providers and resolves model names to the

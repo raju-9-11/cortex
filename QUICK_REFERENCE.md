@@ -1,4 +1,4 @@
-# Forge Codebase - Quick Reference Guide
+# Cortex Codebase - Quick Reference Guide
 
 ## Project Statistics
 - **Total Go Files**: 31
@@ -65,7 +65,7 @@ Routes:
 
 ### 5. SERVER & CONFIGURATION
 ```
-cmd/forge/
+cmd/cortex/
 └── main.go             (lines 18-107)  — Entry point, provider registration
 
 internal/server/
@@ -192,19 +192,19 @@ Client receives SSE stream
 ## Configuration (Environment Variables)
 
 ### Server
-- `FORGE_ADDR` (default: `:8080`)
-- `FORGE_DEV` (default: `false`)
+- `CORTEX_ADDR` (default: `:8080`)
+- `CORTEX_DEV` (default: `false`)
 
 ### Database
 - `DATABASE_URL` (if set → PostgreSQL; else → SQLite)
-- `FORGE_DB_PATH` (default: `forge.db`)
+- `CORTEX_DB_PATH` (default: `cortex.db`)
 
 ### Authentication
-- `FORGE_API_KEY` (if set → require auth)
+- `CORTEX_API_KEY` (if set → require auth)
 
 ### Providers
-- `FORGE_PROVIDER` (default: `qwen`)
-- `FORGE_MODEL` (default: `qwen2.5:0.5b`)
+- `CORTEX_PROVIDER` (default: `qwen`)
+- `CORTEX_MODEL` (default: `qwen2.5:0.5b`)
 
 ### Ollama
 - `OLLAMA_URL` (default: `http://localhost:11434`)
@@ -214,14 +214,14 @@ Client receives SSE stream
 - `{PROVIDER}_API_KEY`
 
 ### Limits
-- `FORGE_MAX_TOOL_TIMEOUT` (default: `60s`)
-- `FORGE_MAX_TOOL_OUTPUT` (default: `65536` bytes)
-- `FORGE_MAX_MESSAGE_SIZE` (default: `102400` bytes)
+- `CORTEX_MAX_TOOL_TIMEOUT` (default: `60s`)
+- `CORTEX_MAX_TOOL_OUTPUT` (default: `65536` bytes)
+- `CORTEX_MAX_MESSAGE_SIZE` (default: `102400` bytes)
 
 ### Logging & CORS
-- `FORGE_LOG_LEVEL` (default: `info`)
-- `FORGE_LOG_FORMAT` (default: `json`)
-- `FORGE_CORS_ORIGINS` (default: `*`)
+- `CORTEX_LOG_LEVEL` (default: `info`)
+- `CORTEX_LOG_FORMAT` (default: `json`)
+- `CORTEX_CORS_ORIGINS` (default: `*`)
 
 ---
 
@@ -246,7 +246,7 @@ Client receives SSE stream
 ## Dependency Tree
 
 ```
-forge
+cortex
 ├── github.com/go-chi/chi/v5 v5.2.5         (HTTP router)
 ├── github.com/caarlos0/env/v11 v11.4.0     (Env var parsing)
 └── modernc.org/sqlite v1.46.1 (indirect)   (SQLite driver)
@@ -287,7 +287,7 @@ forge
 6. **OSS** — If `OSS_API_KEY` set
 7. **Mock Providers** — Fallback if no real providers configured
 
-**First registered becomes default** (unless overridden by `FORGE_PROVIDER`)
+**First registered becomes default** (unless overridden by `CORTEX_PROVIDER`)
 
 ---
 
@@ -304,7 +304,7 @@ forge
 
 ## Entry Point Flow
 
-**`cmd/forge/main.go`**:
+**`cmd/cortex/main.go`**:
 
 1. Load config from env vars
 2. Initialize SQLite store

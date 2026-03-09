@@ -30,7 +30,7 @@ func TestDiscoverConfigFile_EnvPathNotExists(t *testing.T) {
 }
 
 func TestDiscoverConfigFile_HomeDir(t *testing.T) {
-	// Create a temp dir to simulate ~/.forge/config.json
+	// Create a temp dir to simulate ~/.cortex/config.json
 	// We can't easily mock os.UserHomeDir, so instead we test by placing
 	// a file at the actual home dir path temporarily.
 	home, err := os.UserHomeDir()
@@ -38,14 +38,14 @@ func TestDiscoverConfigFile_HomeDir(t *testing.T) {
 		t.Skip("cannot determine home dir")
 	}
 
-	forgeDir := filepath.Join(home, ".forge")
-	configPath := filepath.Join(forgeDir, "config.json")
+	cortexDir := filepath.Join(home, ".cortex")
+	configPath := filepath.Join(cortexDir, "config.json")
 
 	// Check if directory/file already exist to avoid clobbering
 	dirExisted := true
-	if _, err := os.Stat(forgeDir); os.IsNotExist(err) {
+	if _, err := os.Stat(cortexDir); os.IsNotExist(err) {
 		dirExisted = false
-		if err := os.MkdirAll(forgeDir, 0755); err != nil {
+		if err := os.MkdirAll(cortexDir, 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -71,7 +71,7 @@ func TestDiscoverConfigFile_HomeDir(t *testing.T) {
 			os.Remove(configPath)
 		}
 		if !dirExisted {
-			os.Remove(forgeDir)
+			os.Remove(cortexDir)
 		}
 	}()
 
@@ -82,21 +82,21 @@ func TestDiscoverConfigFile_HomeDir(t *testing.T) {
 }
 
 func TestDiscoverConfigFile_LocalDir(t *testing.T) {
-	// ./forge.config.json exists → returns it
+	// ./cortex.config.json exists → returns it
 	dir := t.TempDir()
-	localConfig := filepath.Join(dir, "forge.config.json")
+	localConfig := filepath.Join(dir, "cortex.config.json")
 	if err := os.WriteFile(localConfig, []byte(`{}`), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Change to the temp dir so that "forge.config.json" resolves
+	// Change to the temp dir so that "cortex.config.json" resolves
 	origDir, _ := os.Getwd()
 	defer os.Chdir(origDir)
 	os.Chdir(dir)
 
-	// Make sure ~/.forge/config.json doesn't interfere
+	// Make sure ~/.cortex/config.json doesn't interfere
 	home, _ := os.UserHomeDir()
-	homeConfig := filepath.Join(home, ".forge", "config.json")
+	homeConfig := filepath.Join(home, ".cortex", "config.json")
 	if _, err := os.Stat(homeConfig); err == nil {
 		// Home config exists; use envPath="" and accept that home config wins
 		// In this case, we just verify some config is found
@@ -108,8 +108,8 @@ func TestDiscoverConfigFile_LocalDir(t *testing.T) {
 	}
 
 	got := DiscoverConfigFile("")
-	if got != "forge.config.json" {
-		t.Errorf("DiscoverConfigFile(\"\") = %q, want %q", got, "forge.config.json")
+	if got != "cortex.config.json" {
+		t.Errorf("DiscoverConfigFile(\"\") = %q, want %q", got, "cortex.config.json")
 	}
 }
 
@@ -120,11 +120,11 @@ func TestDiscoverConfigFile_None(t *testing.T) {
 	defer os.Chdir(origDir)
 	os.Chdir(dir)
 
-	// Make sure ~/.forge/config.json doesn't exist
+	// Make sure ~/.cortex/config.json doesn't exist
 	home, _ := os.UserHomeDir()
-	homeConfig := filepath.Join(home, ".forge", "config.json")
+	homeConfig := filepath.Join(home, ".cortex", "config.json")
 	if _, err := os.Stat(homeConfig); err == nil {
-		t.Skip("~/.forge/config.json exists, cannot test 'none found' case")
+		t.Skip("~/.cortex/config.json exists, cannot test 'none found' case")
 	}
 
 	got := DiscoverConfigFile("")
@@ -134,11 +134,11 @@ func TestDiscoverConfigFile_None(t *testing.T) {
 }
 
 func TestDiscoverConfigFile_Priority(t *testing.T) {
-	// env path > ~/.forge/config.json > ./forge.config.json
+	// env path > ~/.cortex/config.json > ./cortex.config.json
 	dir := t.TempDir()
 
 	envPath := filepath.Join(dir, "env-config.json")
-	localConfig := filepath.Join(dir, "forge.config.json")
+	localConfig := filepath.Join(dir, "cortex.config.json")
 
 	if err := os.WriteFile(envPath, []byte(`{}`), 0644); err != nil {
 		t.Fatal(err)

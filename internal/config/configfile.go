@@ -23,7 +23,7 @@ type ProviderEntry struct {
 }
 
 // DiscoverConfigFile finds the first config file that exists.
-// Search order: envPath (from $FORGE_CONFIG) > ~/.forge/config.json > ./forge.config.json
+// Search order: envPath (from $CORTEX_CONFIG) > ~/.cortex/config.json > ./cortex.config.json
 // Returns empty string if no config file found.
 // Warns if the config file has overly permissive permissions.
 func DiscoverConfigFile(envPath string) string {
@@ -34,10 +34,10 @@ func DiscoverConfigFile(envPath string) string {
 	}
 
 	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".forge", "config.json"))
+		candidates = append(candidates, filepath.Join(home, ".cortex", "config.json"))
 	}
 
-	candidates = append(candidates, "forge.config.json")
+	candidates = append(candidates, "cortex.config.json")
 
 	for _, path := range candidates {
 		info, err := os.Stat(path)

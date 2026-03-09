@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"forge/internal/inference"
-	"forge/internal/store"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/internal/store"
+	"cortex/pkg/types"
 
 	"github.com/go-chi/chi/v5"
 )

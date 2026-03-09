@@ -7,7 +7,7 @@ import (
 func TestNewSucceeds(t *testing.T) {
 	// Use a temp DB so we don't pollute the working directory.
 	tmpFile := t.TempDir() + "/test.db"
-	t.Setenv("FORGE_DB_PATH", tmpFile)
+	t.Setenv("CORTEX_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {
@@ -34,7 +34,7 @@ func TestNewSucceeds(t *testing.T) {
 
 func TestNewWithVersion(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	t.Setenv("FORGE_DB_PATH", tmpFile)
+	t.Setenv("CORTEX_DB_PATH", tmpFile)
 
 	application, err := New(WithVersion("1.2.3"))
 	if err != nil {
@@ -49,7 +49,7 @@ func TestNewWithVersion(t *testing.T) {
 
 func TestNewDefaultVersionIsDev(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	t.Setenv("FORGE_DB_PATH", tmpFile)
+	t.Setenv("CORTEX_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {
@@ -65,7 +65,7 @@ func TestNewDefaultVersionIsDev(t *testing.T) {
 func TestNewMockFallback(t *testing.T) {
 	// Ensure no provider env vars are set so we hit mock fallback.
 	tmpFile := t.TempDir() + "/test.db"
-	t.Setenv("FORGE_DB_PATH", tmpFile)
+	t.Setenv("CORTEX_DB_PATH", tmpFile)
 
 	// Clear all provider keys so no real providers are registered.
 	for _, key := range []string{
@@ -97,7 +97,7 @@ func TestNewMockFallback(t *testing.T) {
 
 func TestCloseIdempotent(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.db"
-	t.Setenv("FORGE_DB_PATH", tmpFile)
+	t.Setenv("CORTEX_DB_PATH", tmpFile)
 
 	application, err := New()
 	if err != nil {

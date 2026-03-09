@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // makeEvents creates a channel and sends the given events, then closes it.

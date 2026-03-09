@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"forge/internal/inference"
-	"forge/internal/streaming"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/internal/streaming"
+	"cortex/pkg/types"
 	"github.com/go-chi/chi/v5"
 )
 

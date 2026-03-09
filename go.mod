@@ -1,4 +1,4 @@
-module forge
+module cortex
 
 go 1.24.3
 

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"forge/internal/inference"
-	"forge/internal/session"
-	"forge/internal/store"
+	"cortex/internal/inference"
+	"cortex/internal/session"
+	"cortex/internal/store"
 )
 
 // testSetup creates an in-memory SQLite store, session manager, and a provider
@@ -58,7 +58,7 @@ func TestRunREPL_BasicExchange(t *testing.T) {
 	output := out.String()
 
 	// Should contain the welcome banner.
-	if !strings.Contains(output, "Forge Chat") {
+	if !strings.Contains(output, "Cortex Chat") {
 		t.Error("output missing welcome banner")
 	}
 
@@ -179,7 +179,7 @@ func TestRunREPL_EmptyInput(t *testing.T) {
 	}
 
 	// Should have prompted at least twice (once for empty, once for /exit).
-	promptCount := strings.Count(output, "forge [mock-model]>")
+	promptCount := strings.Count(output, "cortex [mock-model]>")
 	if promptCount < 2 {
 		t.Errorf("expected at least 2 prompts, got %d", promptCount)
 	}
@@ -222,7 +222,7 @@ func TestRunREPL_SlashModel(t *testing.T) {
 	}
 
 	// The prompt after model switch should show the new model.
-	if !strings.Contains(output, "forge [new-model]>") {
+	if !strings.Contains(output, "cortex [new-model]>") {
 		t.Errorf("expected prompt to show new model, got:\n%s", output)
 	}
 }

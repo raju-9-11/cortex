@@ -1,7 +1,7 @@
 import openai
 import sys
 
-# Connect to the local Forge server
+# Connect to the local Cortex server
 client = openai.OpenAI(
     base_url="http://localhost:8080/v1",
     api_key="not-needed-for-mock"

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"forge/internal/inference"
-	"forge/internal/session"
-	"forge/internal/store"
-	"forge/internal/streaming"
-	"forge/pkg/types"
+	"cortex/internal/inference"
+	"cortex/internal/session"
+	"cortex/internal/store"
+	"cortex/internal/streaming"
+	"cortex/pkg/types"
 
 	"github.com/go-chi/chi/v5"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // RunOnce executes a single prompt against the resolved provider and streams

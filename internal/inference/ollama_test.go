@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"forge/pkg/types"
+	"cortex/pkg/types"
 )
 
 // ---------------------------------------------------------------------------

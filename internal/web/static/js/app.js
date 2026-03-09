@@ -1,7 +1,7 @@
 /* ============================================================================
- * Forge Chat UI — Application Logic
+ * Cortex Chat UI — Application Logic
  * ============================================================================
- * Vanilla JS, no frameworks. Communicates with Forge's Go backend via REST +
+ * Vanilla JS, no frameworks. Communicates with Cortex's Go backend via REST +
  * SSE streaming (POST-based, parsed with ReadableStream).
  * ========================================================================= */
 
@@ -49,7 +49,7 @@
   // --------------------------------------------------------------------------
   // Configuration
   // --------------------------------------------------------------------------
-  const API_KEY_STORAGE = 'forge_api_key';
+  const API_KEY_STORAGE = 'cortex_api_key';
 
   function getApiKey() {
     return localStorage.getItem(API_KEY_STORAGE) || '';
@@ -715,7 +715,7 @@
   // --------------------------------------------------------------------------
 
   function promptForApiKey() {
-    var key = prompt('Enter your Forge API key:');
+    var key = prompt('Enter your Cortex API key:');
     if (key !== null) {
       setApiKey(key.trim());
     }
